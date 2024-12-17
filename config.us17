@@ -1,0 +1,7 @@
+{
+    "client_id": "mlipebtwsndhxdmnzdwrxzmiolotdq7i5hjv34mrke6jfnekdfvhg",
+    "client_secret": "X2Ebm9jiLO3L1icahKy8hrPEG6qylMsiYiuMqbrCyKFT72ImFcJEZYapA9I4ChMA",
+    "api_endpoint_url": "https://api.us17.app.wiz.io/graphql",
+    "token_url": "https://auth.app.wiz.io/oauth/token",
+    "project_id": "d6ac50bb-aec0-52fc-80ab-bacd7b02f178"
+}
