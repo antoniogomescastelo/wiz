@@ -10,10 +10,6 @@ import requests
 
 import pandas as pd
 
-import pygwalker as pyg
-
-from pygwalker.api.streamlit import StreamlitRenderer
-
 from datetime import datetime
 
 from contextlib import closing
@@ -1090,11 +1086,6 @@ Prioritize addressing the critical findings first, followed by the high findings
 
             st.dataframe(data_scan_resources_df2[columns])
         
-
-        #pyg_app = StreamlitRenderer(data_scan_resources_df2)
- 
-        #pyg_app.explorer()
-
 
         logging.getLogger().debug('done')
 
