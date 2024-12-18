@@ -1,4 +1,4 @@
-# %%
+
 import re
 import sys
 import csv
@@ -20,21 +20,21 @@ import altair as alt
 
 
 
-# %%
-# graphql conf
+
+#graphql conf
 MAX_RETRIES_FOR_QUERY = 5
 MAX_RETRIES_FOR_DOWNLOAD_REPORT = 5
 RETRY_TIME_FOR_QUERY = 2
 RETRY_TIME_FOR_DOWNLOAD_REPORT = 60
 CHECK_INTERVAL_FOR_DOWNLOAD_REPORT = 20
 
-# %%
-# authentication     
+
+#authentication     
 AUTH0_URLS = ['https://auth.wiz.io/oauth/token', 'https://auth0.gov.wiz.io/oauth/token']
 COGNITO_URLS = ['https://auth.app.wiz.io/oauth/token', 'https://auth.gov.wiz.io/oauth/token']
 
-# %%
-# get projects query 
+
+#get projects query 
 GET_PROJECTS_QUERY = (
     """
       query ProjectsTable(
@@ -62,8 +62,8 @@ GET_PROJECTS_QUERY = (
     """
 )
 
-# %%
-# get isseus query
+
+#get isseus query
 GET_ISSUES_QUERY = (
     """
     query IssuesTable($filterBy: IssueFilters, $first: Int, $after: String, $orderBy: IssueOrder) {
@@ -190,8 +190,8 @@ GET_ISSUES_QUERY = (
     """
 )
 
-# %%
-# get resources query
+
+#get resources query
 GET_RESOURCES_QUERY = (
     """
       query CloudResourceSearch(
@@ -235,8 +235,8 @@ GET_RESOURCES_QUERY = (
     """
 )
 
-# %%
-# get report query
+
+#get report query
 GET_REPORT_QUERY = (
     """
     query ReportsTable($filterBy: ReportFilters, $first: Int, $after: String) {
@@ -254,9 +254,9 @@ GET_REPORT_QUERY = (
     """
 )
 
-# %%
 
-# create report mutation
+
+#create report mutation
 CREATE_REPORT_MUTATION = (
     """
     mutation CreateReport($input: CreateReportInput!) {
@@ -269,8 +269,8 @@ CREATE_REPORT_MUTATION = (
     """
 )
 
-# %%
-# rerun report mutation
+
+#rerun report mutation
 RERUN_REPORT_MUTATION = (
     """
     mutation RerunReport($reportId: ID!) {
@@ -283,8 +283,8 @@ RERUN_REPORT_MUTATION = (
     """
 )
 
-# %%
-# report download query
+
+#report download query
 DOWNLOAD_REPORT_QUERY = (
     """
     query ReportDownloadUrl($reportId: ID!) {
@@ -298,8 +298,8 @@ DOWNLOAD_REPORT_QUERY = (
     """
 )
 
-# %%
-# set logging
+
+#set logging
 def set_logging():
     logging.getLogger().setLevel(logging.INFO)
 
@@ -311,8 +311,8 @@ def set_logging():
 
     logging.getLogger().handlers = [handler]
 
-# %%
-# get config
+
+#get config
 def get_config():
     logging.getLogger().debug("get config")
 
@@ -321,8 +321,8 @@ def get_config():
 
     return config
 
-# %%
-# get auth params
+
+#get auth params
 def generate_authentication_params(config):
     if config['token_url'] in AUTH0_URLS:
         return {
@@ -343,8 +343,8 @@ def generate_authentication_params(config):
     else:
         raise Exception('Error: wrong token url')
 
-# %%
-# get token
+
+#get token
 def get_token(config):
     response = requests.post(
         config['token_url'],
@@ -362,8 +362,8 @@ def get_token(config):
 
     return config
 
-# %%
-# send request
+
+#send request
 def send_request(config, query, variables):    
     if config['token']:
         return requests.post(
@@ -374,8 +374,8 @@ def send_request(config, query, variables):
     
     raise Exception('Error: token not found')
 
-# %%
-# query
+
+#query
 def query(config, query, variables):
     retries = 0
 
@@ -404,8 +404,8 @@ def query(config, query, variables):
     
     return response.json().get('data')
 
-# %%
-# get projects
+
+#get projects
 def get_projects(config):
     logging.getLogger().debug("get projects")
 
@@ -436,8 +436,8 @@ def get_projects(config):
 
     return nodes
 
-# %%
-# get issues
+
+#get issues
 def get_issues(config, project_id):
     logging.getLogger().debug("get issues")
 
@@ -470,8 +470,8 @@ def get_issues(config, project_id):
             
     return nodes
 
-# %%
-# get resources
+
+#get resources
 def get_resources(config, project_id):
     logging.getLogger().debug("get resources")
 
@@ -502,8 +502,8 @@ def get_resources(config, project_id):
             
     return nodes
 
-# %%
-# create report
+
+#create report
 def create_report(config, project_id, report_prefix, report_type):
     variables = {
         "input": {
@@ -519,8 +519,8 @@ def create_report(config, project_id, report_prefix, report_type):
 
     return report_id
 
-# %%
-# rerun report
+
+#rerun report
 def rerun_report(config, report_id):
     variables = {
         'reportId': report_id
@@ -532,8 +532,8 @@ def rerun_report(config, report_id):
 
     return report_id
 
-# %%
-# get report url and status
+
+#get report url and status
 def get_report_url_and_status(config, report_id):
     num_of_retries = 0
 
@@ -556,8 +556,8 @@ def get_report_url_and_status(config, report_id):
 
     raise Exception('Error: get report fail')
 
-# %%
-# get report content
+
+#get report content
 def get_report_content(download_url):
     report_data = []
 
@@ -575,13 +575,13 @@ def get_report_content(download_url):
     else:
         raise Exception('Error: download failed')
 
-# %%
-# get report content to dataframe
+
+#get report content to dataframe
 def get_report_content_to_dataframe(download_url):
     return pd.read_csv(download_url)    
 
-# %%
-# get report
+
+#get report
 def get_report(config, project_id):    
     logging.getLogger().debug("get report")
     
@@ -598,8 +598,8 @@ def get_report(config, project_id):
 
     return report_data
 
-# %%
-# get external id
+
+#get external id
 def get_external_id(x):
     try:
         return x['properties']['externalId']
@@ -611,7 +611,7 @@ def get_external_id(x):
         except Exception as error:
             return None
 
-# %%
+
 def replaceDot(x):
     return(x.replace('properties.','_'))
 
@@ -623,8 +623,8 @@ def get_number_of_findings(x):
     except Exception as error:
         return None
     
-# %%
-# main
+
+#main
 def main():
     global projects
     global issues_df
@@ -637,7 +637,7 @@ def main():
     try:
         set_logging()
 
-        config = get_token(get_config())
+        #config = get_token(get_config())
 
         #resources = get_resources(config, config['project_id']) 
         
@@ -701,17 +701,17 @@ def main():
         findings_per_type_and_classifier = data_scan_resources_df2[['type', 'Classifier', 'Finding ID']].groupby(by=['type','Classifier']).count().reset_index().rename(columns={"Finding ID": "count"})
 
 
-        unique_matches_per_region = data_scan_resources_df2[['_region','Unique Matches']].groupby(by=['_region']).sum().reset_index().rename(columns={"Unique Matches": "count"})
+        #unique_matches_per_region = data_scan_resources_df2[['_region','Unique Matches']].groupby(by=['_region']).sum().reset_index().rename(columns={"Unique Matches": "count"})
 
-        unique_matches_per_type = data_scan_resources_df2[['type','Unique Matches']].groupby(by=['type']).sum().reset_index().rename(columns={"Unique Matches": "count"})
+        #unique_matches_per_type = data_scan_resources_df2[['type','Unique Matches']].groupby(by=['type']).sum().reset_index().rename(columns={"Unique Matches": "count"})
 
-        unique_matches_per_classifier = data_scan_resources_df2[['Classifier','Unique Matches']].groupby(by=['Classifier']).sum().reset_index().rename(columns={"Unique Matches": "count"})
+        #unique_matches_per_classifier = data_scan_resources_df2[['Classifier','Unique Matches']].groupby(by=['Classifier']).sum().reset_index().rename(columns={"Unique Matches": "count"})
 
         #unique_matches_per_severity = data_scan_resources_df2[['Severity','Unique Matches']].groupby(by=['Severity']).sum().reset_index().rename(columns={"Unique Matches": "count"})
 
-        unique_matches_per_type_and_severity = data_scan_resources_df2[['type', 'Severity', 'Unique Matches']].groupby(by=['type','Severity']).sum().reset_index().rename(columns={"Unique Matches": "count"})
+        #unique_matches_per_type_and_severity = data_scan_resources_df2[['type', 'Severity', 'Unique Matches']].groupby(by=['type','Severity']).sum().reset_index().rename(columns={"Unique Matches": "count"})
 
-        unique_matches_per_type_and_classifier = data_scan_resources_df2[['type', 'Classifier', 'Unique Matches']].groupby(by=['type','Classifier']).sum().reset_index().rename(columns={"Unique Matches": "count"})
+        #unique_matches_per_type_and_classifier = data_scan_resources_df2[['type', 'Classifier', 'Unique Matches']].groupby(by=['type','Classifier']).sum().reset_index().rename(columns={"Unique Matches": "count"})
 
         
         total_matches_per_region = data_scan_resources_df2[['_region','Total Matches']].groupby(by=['_region']).sum().reset_index().rename(columns={"Total Matches": "count"})
@@ -731,13 +731,6 @@ def main():
 
         style = """
             <style>
-                .stMetric {
-                    background-color: #EEEEEE;
-                    border: 1px solid #DCDCDC;
-                    padding: 10px;
-                    border-radius: 10px; 
-                }
-
                 .stVegaLiteChart {
                     background-color: #EEEEEE;
                 }
@@ -750,20 +743,24 @@ def main():
 
         col1, col2, col3, col4 = st.columns(4)
 
-        col1.metric("AWS", resources_per_cloud_platform.iloc[0]['count'])
+        with col1:
+            st.metric("AWS", resources_per_cloud_platform.iloc[0]['count'], delta=str(resources_per_creation_date.iloc[-1]['count']), delta_color="normal", help=None, label_visibility="visible", border=False)
 
-        col2.metric("Production", resources_per_environment.iloc[0]['count'])
+        with col2:
+            st.metric("Production", resources_per_environment.iloc[0]['count'], delta=None, delta_color="normal", help=None, label_visibility="visible", border=False)
 
-        col3.metric("Active", resources_per_status.iloc[0]['count'])
+        with col3:
+            st.metric("Active", resources_per_status.iloc[0]['count'], delta=None, delta_color="normal", help=None, label_visibility="visible", border=False)
 
-        col4.metric("Inactive", resources_per_status.iloc[1]['count'])
+        with col4:
+            st.metric("Inactive", resources_per_status.iloc[1]['count'], delta=None, delta_color="normal", help=None, label_visibility="visible", border=False)
 
         st.write("#")
 
-        # group 1
+        #group 1
         st.subheader("Resources Summary")
 
-        # group 1.1
+        #group 1.1
         c = (alt.Chart(resources_per_creation_date)
               .encode(alt.X('_creationYYMM:O', axis=alt.Axis(labels=True, labelAngle=0)).timeUnit("yearmonth").title('Resource creation'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="lightgreyteal", reverse=False), alt.Text('count'), tooltip=["_creationYYMM:T", "count"])
               .properties(title='Number of resources per date')
@@ -773,319 +770,338 @@ def main():
 
         st.write("#")
 
-        # group 1.2
+        #group 1.2
         col1, col2, col3 = st.columns([1,1,1])
+        
+        with col1:
+            st.markdown(
+            """
+            ## Calling us-east-1
 
-        col1.markdown(
-"""## Calling us-east-1
+            The analysis provides a breakdown of the resources identified across different regions and their types. As illustrated in the graphs on the right, more than 70% of the resources with data findings are located in the us-east-1 region, approximately 50% are categorized as buckets, while around 10% are classified as databases.
+            """
+            )
 
-The analysis provides a breakdown of the resources identified across different regions and their types. As illustrated in the graphs on the right, more than 70% of the resources with data findings are located in the us-east-1 region, approximately 50% are categorized as buckets, while around 10% are classified as databases.
-"""
-        )
+        with col2:
+            c = (
+                alt.Chart(resources_per_region)
+                .encode(alt.X('_region', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource region'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="lightgreyteal", reverse=False), alt.Text('count'), tooltip=["_region", "count"])
+                .properties(title='Number of resources per region')
+            )
 
-        c = (
-            alt.Chart(resources_per_region)
-            .encode(alt.X('_region', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource region'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="lightgreyteal", reverse=False), alt.Text('count'), tooltip=["_region", "count"])
-            .properties(title='Number of resources per region')
-        )
+            st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
 
-        col2.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
+        with col3:
+            c = (alt.Chart(resources_per_type)
+                .encode(alt.X('type', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource type'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="lightgreyteal", reverse=False), alt.Text('count'), tooltip=["type", "count"])
+                .properties(title='Number of resources per type')
+            )
 
-        c = (alt.Chart(resources_per_type)
-            .encode(alt.X('type', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource type'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="lightgreyteal", reverse=False), alt.Text('count'), tooltip=["type", "count"])
-            .properties(title='Number of resources per type')
-        )
-
-        col3.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
+            st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
 
         st.write("#")
 
-        # group 1.3
+        #group 1.3
         col1, col2, col3 = st.columns([1,1,1])
 
-        c = (alt.Chart(resources_per_severity)
-            .encode(alt.X('Severity', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding severity'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="lightgreyteal", reverse=False), alt.Text('count'), tooltip=["Severity", "count"])
-            .properties(title='Number of resources per severity')
-        )
-                
-        col1.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
+        with col1:
+            c = (alt.Chart(resources_per_severity)
+                .encode(alt.X('Severity', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding severity'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="lightgreyteal", reverse=False), alt.Text('count'), tooltip=["Severity", "count"])
+                .properties(title='Number of resources per severity')
+            )
+                    
+            st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
 
-        c = (alt.Chart(resources_per_category)
-              .encode(alt.X('Category', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="lightgreyteal", reverse=False), alt.Text('count'), tooltip=["Category", "count"])
-              .properties(title='Number of resources per classifier')
-         )
-                
-        col2.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
+        with col2:
+            c = (alt.Chart(resources_per_category)
+                .encode(alt.X('Category', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="lightgreyteal", reverse=False), alt.Text('count'), tooltip=["Category", "count"])
+                .properties(title='Number of resources per classifier')
+            )
+                    
+            st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
 
-        col3.markdown(
-"""## Should we worry about it
+        with col3:
+            st.markdown(
+            """
+            ## Should we worry about it
 
-The analysis offers a comprehensive overview of the identified resources, highlighting their severity and classifications. As shown in the graphs on the left, 47 out of the 96 (50%) resources exhibit significant findings, categorized as high and critical data with Personally Identifiable, Financial, and Digital Identity information being in the top 5 categories.
-"""
-        )
+            The analysis offers a comprehensive overview of the identified resources, highlighting their severity and classifications. As shown in the graphs on the left, 47 out of the 96 (50%) resources exhibit significant findings, categorized as high and critical data with Personally Identifiable, Financial, and Digital Identity information being in the top 5 categories.
+            """
+            )
 
         st.write("#")
 
-        # group 2
+        #group 2
         st.subheader("Data Findinds Summary")
 
-        # group 2.1
+        #group 2.1
         col1, col2, col3 = st.columns([1,1,1])
 
-        col1.markdown(
-"""## Houston, we have a problem
+        with col1:
+            st.markdown(
+            """
+            ## Houston, we have a problem
 
-The analysis offers a detailed overview of the unique findings discovered across various regions and their classifications. As demonstrated in the graphs on the right, over 75% of the resources containing data findings are situated in the us-east-1 region. Additionally, approximately 75% of these resources are categorized as buckets, while around 18% are identified as databases. This reinforces our earlier observations that buckets and databases are the most critical components.
-"""            
-        )
+            The analysis offers a detailed overview of the unique findings discovered across various regions and their classifications. As demonstrated in the graphs on the right, over 75% of the resources containing data findings are situated in the us-east-1 region. Additionally, approximately 75% of these resources are categorized as buckets, while around 18% are identified as databases. This reinforces our earlier observations that buckets and databases are the most critical components.
+            """            
+            )
 
-        c = (alt.Chart(findings_per_region)
-             .encode(alt.X('_region', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource region'), alt.Y('count', axis=alt.Axis(labels=False)).title(''), alt.Color('count', legend=None).scale(scheme="lightorange", reverse=False), alt.Text('count'), tooltip=["_region", "count"])
-             .properties(title='Number of findings per region')
-        )
-        
-        col2.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
+        with col2:
+            c = (alt.Chart(findings_per_region)
+                .encode(alt.X('_region', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource region'), alt.Y('count', axis=alt.Axis(labels=False)).title(''), alt.Color('count', legend=None).scale(scheme="lightorange", reverse=False), alt.Text('count'), tooltip=["_region", "count"])
+                .properties(title='Number of findings per region')
+            )
+            
+            st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
 
-        c = (alt.Chart(findings_per_type)
-             .encode(alt.X('type', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource type'), alt.Y('count', axis=alt.Axis(labels=False)).title(''), alt.Color('count', legend=None).scale(scheme="lightorange", reverse=False), alt.Text('count'), tooltip=["type", "count"])
-             .properties(title='Number of findings per type')
-        )
-        
-        col3.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
+        with col3:
+            c = (alt.Chart(findings_per_type)
+                .encode(alt.X('type', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource type'), alt.Y('count', axis=alt.Axis(labels=False)).title(''), alt.Color('count', legend=None).scale(scheme="lightorange", reverse=False), alt.Text('count'), tooltip=["type", "count"])
+                .properties(title='Number of findings per type')
+            )
+            
+            st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
 
         st.write("#")
 
-        # group 2.2
+        #group 2.2
         col1, col2 = st.columns([2,1])
 
-        # c = (alt.Chart(findings_per_severity)
-        #     .encode(alt.X('Severity', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding severity'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="lightorange", reverse=False), alt.Text('count'), tooltip=["Severity", "count"])
-        #     .properties(title='Number of findings per severity')
-        # )
-                
-        # col1.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
+        with col1:
+            c = (alt.Chart(findings_per_classifier)
+                .encode(alt.X('Classifier', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="lightorange", reverse=False), alt.Text('count'), tooltip=["Classifier", "count"])
+                .properties(title='Number of findings per classifier')
+            )
+                    
+            st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
 
-        c = (alt.Chart(findings_per_classifier)
-              .encode(alt.X('Classifier', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="lightorange", reverse=False), alt.Text('count'), tooltip=["Classifier", "count"])
-              .properties(title='Number of findings per classifier')
-         )
-                
-        col1.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
+        with col2:
+            st.markdown(
+            """
+            ## Who you gonna call, today 
 
-        col2.markdown(
-"""## Who you gonna call, today 
-
-The analysis provides a thorough overview of the identified resources and their classifications. The graph on the left illustrates that key data points, including names, emails, phone numbers, addresses, gender, and transaction details, are prominently featured.
-"""
-        )
+            The analysis provides a thorough overview of the identified resources and their classifications. The graph on the left illustrates that key data points, including names, emails, phone numbers, addresses, gender, and transaction details, are prominently featured.
+            """
+            )
 
         st.write("#")
 
-        # group 2.3
+        #group 2.3
         col1, col2 = st.columns([1,2])
  
-        col1.markdown(
-"""## The most bang for the buck
-"""            
-        )
+        with col1:
+            st.markdown(
+            """
+            ## The most bang for the buck
+            """            
+            )
 
-        c = (alt.Chart(findings_per_type_and_classifier)
-               .encode(alt.X('Classifier', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="orangered", reverse=False), alt.Text('count'), tooltip=["Classifier","type","count"])
-               .properties(title='Number of findings per resource type and classifier')
-        )
+        with col2:
+            c = (alt.Chart(findings_per_type_and_classifier)
+                .encode(alt.X('Classifier', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="orangered", reverse=False), alt.Text('count'), tooltip=["Classifier","type","count"])
+                .properties(title='Number of findings per resource type and classifier')
+            )
 
-        col2.altair_chart(c.mark_rect(), use_container_width=True) 
+            st.altair_chart(c.mark_rect(), use_container_width=True) 
 
-        # group 2.4
+        #group 2.4
         col1, col2 = st.columns([1,2])
 
-        c = (alt.Chart(findings_per_type_and_severity)
-               .encode(alt.X('Severity', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding severity'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="orangered", reverse=False), alt.Text('count'), tooltip=["Severity","type","count"])
-               .properties(title='Number of findings per resource type and severity')
-        )
+        with col1:
+            c = (alt.Chart(findings_per_type_and_severity)
+                .encode(alt.X('Severity', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding severity'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="orangered", reverse=False), alt.Text('count'), tooltip=["Severity","type","count"])
+                .properties(title='Number of findings per resource type and severity')
+            )
 
-        col1.altair_chart((c.mark_rect() + c.mark_text(baseline="middle", fontWeight="bold").encode(color=alt.value("white"))), use_container_width=True) 
+            col1.altair_chart((c.mark_rect() + c.mark_text(baseline="middle", fontWeight="bold").encode(color=alt.value("white"))), use_container_width=True) 
 
-
-        col2.markdown(
-"""
-When spending time or money, it is essential to insist on getting the most bang for the buck.
-"""
-        )
+        with col2:
+            st.markdown(
+            """
+            When spending time or money, it is essential to insist on getting the most bang for the buck.
+            """
+            )
 
         st.write("#")
 
+        ## group 3
+        #st.subheader("Unique Matches Summary")
 
-        # # group 3
-        # st.subheader("Unique Matches Summary")
+        ## group 3.1
+        #col1, col2, col3 = st.columns([1,1,1])
 
-        # # group 3.1
-        # col1, col2, col3 = st.columns([1,1,1])
+        #with col1:
+        #   st.markdown("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
-        # col1.markdown("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
-
-        # c = (alt.Chart(unique_matches_per_region)
-        #      .encode(alt.X('_region', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource region'), alt.Y('count', axis=alt.Axis(labels=False)).title(''), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["_region", "count"])
-        #      .properties(title='Number of unique matches per region')
-        # )
+        #with col2:
+        #   c = (alt.Chart(unique_matches_per_region)
+        #       .encode(alt.X('_region', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource region'), alt.Y('count', axis=alt.Axis(labels=False)).title(''), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["_region", "count"])
+        #       .properties(title='Number of unique matches per region')
+        #   )
         
-        # col2.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
+        #   st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
 
-        # c = (alt.Chart(unique_matches_per_type)
-        #      .encode(alt.X('type', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource type'), alt.Y('count', axis=alt.Axis(labels=False)).title(''), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["type", "count"])
-        #      .properties(title='Number of unique matches per type')
-        # )
+        #with col3:
+        #   c = (alt.Chart(unique_matches_per_type)
+        #       .encode(alt.X('type', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource type'), alt.Y('count', axis=alt.Axis(labels=False)).title(''), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["type", "count"])
+        #       .properties(title='Number of unique matches per type')
+        #   )
         
-        # col3.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
+        #   st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
 
-        # st.write("#")
+        #st.write("#")
 
-        # # group 3.2
-        # col1, col2 = st.columns([2,1])
+        ## group 3.2
+        #col1, col2 = st.columns([2,1])
 
-        # c = (alt.Chart(unique_matches_per_classifier)
+        #with col1:
+        #   c = (alt.Chart(unique_matches_per_classifier)
         #       .encode(alt.X('Classifier', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Classifier", "count"])
         #       .properties(title='Number of unique matches per classifier')
-        #  )
+        #   )
                 
-        # col1.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
+        #   st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
 
-        # # c = (alt.Chart(unique_matches_per_severity)
-        # #     .encode(alt.X('Severity', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding severity'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Severity", "count"])
-        # #     .properties(title='Number of unique matches per severity')
-        # # )
-                
-        # # col2.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
+        #with col2:
+        #   st.markdown("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
-        # col2.markdown("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
+        #st.write("#")
 
-        # st.write("#")
-
-        # # group 3.3
-        # col1, col2 = st.columns([1,2])
+        ## group 3.3
+        #col1, col2 = st.columns([1,2])
  
-        # # c = (alt.Chart(unique_matches_per_type_and_severity)
-        # #        .encode(alt.X('Severity', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding severity'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Severity","type","count"])
-        # #        .properties(title='Number of unique matches per resource type and severity')
-        # # )
+        #with col1:
+        #   c = (alt.Chart(unique_matches_per_type_and_severity)
+        #       .encode(alt.X('Severity', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding severity'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Severity","type","count"])
+        #       .properties(title='Number of unique matches per resource type and severity')
+        #   )
 
-        # # l[0].altair_chart(c.mark_rect(), use_container_width=True) 
+        #   st.altair_chart(c.mark_rect(), use_container_width=True) 
 
-        # col1.markdown("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
+        #with col1:
+        #   st.markdown("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
-        # c = (alt.Chart(unique_matches_per_type_and_classifier)
-        #        .encode(alt.X('Classifier', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Classifier","type","count"])
-        #        .properties(title='Number of unique matches per resource type and classifier')
-        # )
+        #with col2:
+        #   c = (alt.Chart(unique_matches_per_type_and_classifier)
+        #       .encode(alt.X('Classifier', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Classifier","type","count"])
+        #       .properties(title='Number of unique matches per resource type and classifier')
+        #   )
 
-        # col2.altair_chart(c.mark_rect(), use_container_width=True) 
+        #   st.altair_chart(c.mark_rect(), use_container_width=True) 
 
+        ## group 3.4
+        #col1, col2 = st.columns([1,2])
 
-        # # group 3.4
-        # col1, col2 = st.columns([1,2])
+        #with col1:
+        #   c = (alt.Chart(unique_matches_per_type_and_severity)
+        #       .encode(alt.X('Severity', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding severity'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Severity","type","count"])
+        #       .properties(title='Number of unique matches per resource type and severity')
+        #   )
 
-        # c = (alt.Chart(unique_matches_per_type_and_severity)
-        #        .encode(alt.X('Severity', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding severity'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Severity","type","count"])
-        #        .properties(title='Number of unique matches per resource type and severity')
-        # )
+        #   st.altair_chart((c.mark_rect() + c.mark_text(baseline="middle", fontWeight="bold").encode(color=alt.value("white"))), use_container_width=True) 
 
-        # col1.altair_chart((c.mark_rect() + c.mark_text(baseline="middle", fontWeight="bold").encode(color=alt.value("white"))), use_container_width=True) 
+        #with col2:
+        #   st.markdown("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
-        # col2.markdown("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
+        #st.write("#")
 
-        # st.write("#")
-
-        # group 4
+        #group 4
         st.subheader("Total Matches Summary")
 
-        # group 4.1
+        #group 4.1
         col1, col2, col3 = st.columns([1,1,1])
 
-        col1.markdown(
-"""## In all its magnitude
+        with col1:
+            st.markdown(
+            """
+            ## In all its magnitude
 
-The analysis provides a comprehensive overview of the total matches identified across different regions and their classifications. As illustrated in the graphs on the right, more than 80% of the resources containing data findings are located in the us-east-1 region. Furthermore, around 97% of these resources are classified as buckets, while merely 2% are recognized as databases. If you're looking to begin your work, start with your buckets..
-"""            
-        )
+            The analysis provides a comprehensive overview of the total matches identified across different regions and their classifications. As illustrated in the graphs on the right, more than 80% of the resources containing data findings are located in the us-east-1 region. Furthermore, around 97% of these resources are classified as buckets, while merely 2% are recognized as databases. If you're looking to begin your work, start with your buckets..
+            """            
+            )
 
-        c = (alt.Chart(total_matches_per_region)
-             .encode(alt.X('_region', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource region'), alt.Y('count', axis=alt.Axis(labels=False)).title(''), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["_region", "count"])
-             .properties(title='Number of total matches per region')
-        )
-        
-        col2.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
+        with col2:
+            c = (alt.Chart(total_matches_per_region)
+                .encode(alt.X('_region', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource region'), alt.Y('count', axis=alt.Axis(labels=False)).title(''), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["_region", "count"])
+                .properties(title='Number of total matches per region')
+            )
+            
+            st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
 
-        c = (alt.Chart(total_matches_per_type)
-             .encode(alt.X('type', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource type'), alt.Y('count', axis=alt.Axis(labels=False)).title(''), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["type", "count"])
-             .properties(title='Number of total matches per type')
-        )
-        
-        col3.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
+        with col3:
+            c = (alt.Chart(total_matches_per_type)
+                .encode(alt.X('type', axis=alt.Axis(labels=True, labelAngle=0)).title('Resource type'), alt.Y('count', axis=alt.Axis(labels=False)).title(''), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["type", "count"])
+                .properties(title='Number of total matches per type')
+            )
+            
+            st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
 
         st.write("#")
 
-        # group 4.2
+        #group 4.2
         col1, col2 = st.columns([2,1])
 
-        c = (alt.Chart(total_matches_per_classifier)
-              .encode(alt.X('Classifier', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Classifier", "count"])
-              .properties(title='Number of total matches per classifier')
-         )
-                
-        col1.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
+        with col1:
+            c = (alt.Chart(total_matches_per_classifier)
+                .encode(alt.X('Classifier', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Classifier", "count"])
+                .properties(title='Number of total matches per classifier')
+            )
+                    
+            st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
 
-        # c = (alt.Chart(total_matches_per_severity)
-        #     .encode(alt.X('Severity', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding severity'), alt.Y('count', axis=alt.Axis(labels=False)).title('Resources'), alt.Color('count', legend=None).scale(scheme="blues", reverse=False), alt.Text('count'), tooltip=["Severity", "count"])
-        #     .properties(title='Number of total matches per severity')
-        # )
-                
-        # col2.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
-
-        col2.markdown(
-"""## Kill 'Em All
-.. and get rid of mushrooms in your yard. 
-"""        )
+        with col2:
+            st.markdown(
+            """
+            ## Kill 'Em All
+            .. and get rid of mushrooms in your yard. 
+            """
+            )
 
         st.write("#")
 
-        # group 4.3
+        #group 4.3
         col1, col2 = st.columns([1,2])
  
-        col1.markdown(
-"""## Allow me
-"""        )
+        with col1:
+            st.markdown(
+            """
+            ## Allow me
+            """
+            )
 
-        c = (alt.Chart(total_matches_per_type_and_classifier)
-               .encode(alt.X('Classifier', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Classifier","type","count"])
-               .properties(title='Number of total matches per resource type and classifier')
-        )
+        with col2:
+            c = (alt.Chart(total_matches_per_type_and_classifier)
+                .encode(alt.X('Classifier', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding classifier'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Classifier","type","count"])
+                .properties(title='Number of total matches per resource type and classifier')
+            )
 
-        col2.altair_chart(c.mark_rect(), use_container_width=True) 
+            st.altair_chart(c.mark_rect(), use_container_width=True) 
 
-        # group 4.4
+        #group 4.4
         col1, col2 = st.columns([1,2])
 
-        c = (alt.Chart(total_matches_per_type_and_severity)
+        with col1:
+            c = (alt.Chart(total_matches_per_type_and_severity)
                .encode(alt.X('Severity', axis=alt.Axis(labels=True, labelAngle=0)).title('Finding severity'), alt.Y('type', axis=alt.Axis(labels=False, labelAngle=0)).title('Resource type'), alt.Color('count', legend=None).scale(scheme="reds", reverse=False), alt.Text('count'), tooltip=["Severity","type","count"])
                .properties(title='Number of total matches per resource type and severity')
-        )
+            )
 
-        col1.altair_chart((c.mark_rect() + c.mark_text(baseline="middle", fontWeight="bold").encode(color=alt.value("white"))), use_container_width=True) 
+            st.altair_chart((c.mark_rect() + c.mark_text(baseline="middle", fontWeight="bold").encode(color=alt.value("white"))), use_container_width=True) 
 
-        col2.markdown(
-"""
-Prioritize addressing the critical findings first, followed by the high findings.
-"""            
-        )
+        with col2:
+            st.markdown(
+            """
+            Prioritize addressing the critical findings first, followed by the high findings.
+            """            
+            )
 
         st.write("#")
 
-        # group 5
+        #group 5
         with st.expander("See details"):
-            columns=['id','name','type','_externalId','_nativeType','_kind','_cloudPlatform','_subscriptionExternalId','_region','__environments','_isManaged','_isPaaS','_creationDate','Finding ID','Category','Classifier','Unique Matches','Total Matches','Severity','Examples Count','Finding Examples']
+            columns=['id','name','type','_externalId','_nativeType','_kind','_cloudPlatform','_subscriptionExternalId','_region','__environments','_isManaged','_isPaaS','_creationDate','Finding ID','Category','Classifier','Severity','Unique Matches','Total Matches','Finding Examples','Examples Count']
 
-            st.dataframe(data_scan_resources_df2[columns])
-        
+            st.data_editor(data_scan_resources_df2[columns],hide_index=True,column_config={"id":"Resource Id","name":"Resource Name","type":"Resource Type","_externalId":"Resource External Id","_nativeType":"Resource Native Type","_kind":"Resource Kind","_cloudPlatform":"Resource Platform","_subscriptionExternalId":"Resource Account","_region":"Resource Region","__environments":"Resource Environment","_isManaged":"Is Resource Managed","_isPaaS":"Is Resource PaaS","_creationDate": "Resource Creation Date","Finding ID": "Finding Id","Category": "Finding Category","Classifier": "Finding Classifier","Severity": "Finding Severity"})
 
         logging.getLogger().debug('done')
 
@@ -1095,8 +1111,6 @@ Prioritize addressing the critical findings first, followed by the high findings
 
 
 
-# %%
+
 if __name__ == '__main__':
     main()    
-
-
