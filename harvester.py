@@ -6,8 +6,6 @@ import time
 
 from os.path import exists
   
-from cryptography.fernet import Fernet
-
 import apache_beam as beam
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
