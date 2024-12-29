@@ -1,5 +1,5 @@
 altair==5.4.1
-apache_beam
+apache_beam==2.42.0
 pandas==2.2.3
 vega==4.1.0
-
+python==3.9.6

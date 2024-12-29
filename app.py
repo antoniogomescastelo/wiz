@@ -632,37 +632,37 @@ def get_number_of_findings(x):
 #get data findings
 @st.cache_resource
 def get_data_findings(config):
-    logging.getLogger().debug("init dashboard")
+    logging.getLogger().debug("get data findings")
 
-    # get_token(config)
+    get_token(config)
 
-    # resources = get_resources(config, config['wizio_project_id']) 
+    resources = get_resources(config, config['wizio_project_id']) 
     
-    # resources_df = pd.DataFrame(resources)
+    resources_df = pd.DataFrame(resources)
 
-    # resources_df['externalId'] = resources_df['graphEntity'].apply(get_external_id)
+    resources_df['externalId'] = resources_df['graphEntity'].apply(get_external_id)
 
-    # reports = get_report(config, config['wizio_project_id']) 
+    reports = get_report(config, config['wizio_project_id']) 
 
-    # data_scan_df = reports['DATA_SCAN']
+    data_scan_df = reports['DATA_SCAN']
 
-    # data_scan_resources_df = data_scan_df.set_index('Resource External ID') .join(resources_df.set_index('externalId'))
+    data_scan_resources_df = data_scan_df.set_index('Resource External ID') .join(resources_df.set_index('externalId'))
 
-    # data_scan_resources_df.reset_index(inplace=True)
+    data_scan_resources_df.reset_index(inplace=True)
 
-    # data_scan_resources_df2=pd.json_normalize(data_scan_resources_df['graphEntity'])
+    data_scan_resources_df2=pd.json_normalize(data_scan_resources_df['graphEntity'])
 
-    # data_scan_resources_df2[['Finding ID', 'Category', 'Classifier', 'Unique Matches', 'Total Matches', 'Severity', 'Finding Examples']]= data_scan_resources_df[['ID', 'Category', 'Classifier', 'Unique Matches', 'Total Matches', 'Severity', 'Finding Examples']]
+    data_scan_resources_df2[['Finding ID', 'Category', 'Classifier', 'Unique Matches', 'Total Matches', 'Severity', 'Finding Examples']]= data_scan_resources_df[['ID', 'Category', 'Classifier', 'Unique Matches', 'Total Matches', 'Severity', 'Finding Examples']]
 
-    # data_scan_resources_df2 = data_scan_resources_df2.rename(lambda x: x.replace('properties.','_'), axis='columns')
+    data_scan_resources_df2 = data_scan_resources_df2.rename(lambda x: x.replace('properties.','_'), axis='columns')
 
-    # data_scan_resources_df2['Examples Count'] = data_scan_resources_df2['Finding Examples'].apply(get_number_of_findings)
+    data_scan_resources_df2['Examples Count'] = data_scan_resources_df2['Finding Examples'].apply(get_number_of_findings)
 
-    # data_scan_resources_df2['_creationYYMM']=data_scan_resources_df2['_creationDate'].str[0:7]
+    data_scan_resources_df2['_creationYYMM']=data_scan_resources_df2['_creationDate'].str[0:7]
 
-    # data_scan_resources_df2.to_csv('datascanresources2.csv', index=False)
+    #data_scan_resources_df2.to_csv('datascanresources2.csv', index=False)
 
-    data_scan_resources_df2 = pd.read_csv('datascanresources2.csv')  
+    #data_scan_resources_df2 = pd.read_csv('datascanresources2.csv')  
 
     return data_scan_resources_df2
 
