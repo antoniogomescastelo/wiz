@@ -639,21 +639,31 @@ def get_number_of_findings(x):
 def get_data_findings(config):
     logging.getLogger().debug("init dashboard")
 
-    # get_token(config)
+    get_token(config)
+
+    session = st.connection("snowflake").session()
 
     # resources = get_resources(config, config['wizio_project_id']) 
     
     # resources_df = pd.DataFrame(resources)
 
+    # session.write_pandas(resources_df, "RESOURCES", auto_create_table=True, overwrite=True)
+
     # resources_df['externalId'] = resources_df['graphEntity'].apply(get_external_id)
+
+    # session.write_pandas(resources_df, "RESOURCES_READY", auto_create_table=True, overwrite=True)
 
     # reports = get_report(config, config['wizio_project_id']) 
 
     # data_scan_df = reports['DATA_SCAN']
 
+    # session.write_pandas(data_scan_df, "DATA_SCAN", auto_create_table=True, overwrite=True)
+
     # data_scan_resources_df = data_scan_df.set_index('Resource External ID') .join(resources_df.set_index('externalId'))
 
     # data_scan_resources_df.reset_index(inplace=True)
+
+    # session.write_pandas(data_scan_resources_df, "DATA_SCAN_RESOURCES", auto_create_table=True, overwrite=True)
 
     # data_scan_resources_df2=pd.json_normalize(data_scan_resources_df['graphEntity'])
 
@@ -665,9 +675,13 @@ def get_data_findings(config):
 
     # data_scan_resources_df2['_creationYYMM']=data_scan_resources_df2['_creationDate'].str[0:7]
 
+    # session.write_pandas(data_scan_resources_df2, "DATA_SCAN_RESOURCES_READY", auto_create_table=True, overwrite=True)
+
+    data_scan_resources_df2 = session.table("DATA_SCAN_RESOURCES_READY").to_pandas()
+
     # data_scan_resources_df2.to_csv('datascanresources2.csv', index=False)
 
-    data_scan_resources_df2 = pd.read_csv('datascanresources2.csv')  
+    # data_scan_resources_df2 = pd.read_csv('datascanresources2.csv')  
 
     return data_scan_resources_df2
 
@@ -757,7 +771,7 @@ def show_dashboard(config):
               .properties(title='Number of resources per date')
          )
 
-        st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True) 
+        st.altair_chart((c.mark_bar() + c.mark_text(align='center', dy=-10)).configure_axis(grid=False).configure_view(strokeWidth=0), use_container_width=True)
 
         st.write("#")
 
@@ -1017,14 +1031,12 @@ def show_dashboard(config):
             ###### Playground
             """
         )
-
+        
         columns=['name','Classifier','Unique Matches','Total Matches','Severity']
         
         st.dataframe(data_scan_resources_df2[columns].pivot_table(values=["Unique Matches","Total Matches"], index=["name","Severity"], columns="Classifier", aggfunc="sum"))
 
-
         #st.write(data_scan_resources_df2[columns].pivot_table(values=["Unique Matches","Total Matches"], index=["name","Severity"], columns="Classifier", aggfunc="sum").to_html())
-
         
         #group 6
         with st.expander("See details"):
@@ -1034,7 +1046,6 @@ def show_dashboard(config):
             
         st.write("")
 
-        
         #do stuff
         do_stuff(config, data_scan_resources_df2)
 
@@ -1434,8 +1445,6 @@ def do_stuff(config, data_scan_resources_df2):
 
 #main   
 def main():
-    st.set_page_config(layout="wide")
-
     logging.getLogger().setLevel(logging.INFO)
 
     try:
@@ -1445,7 +1454,10 @@ def main():
         raise Exception('Error: %s', error)
     
 
+
 if __name__ == '__main__':
+    st.set_page_config(layout="wide")
+    
     main()    
 
 
