@@ -6,6 +6,7 @@ import json
 import codecs
 import logging
 import requests
+import glob
 
 import pandas as pd
 
@@ -22,6 +23,10 @@ from requests.auth import HTTPBasicAuth
 from services import ImportService, Identifier
 
 from harvester import HarvesterService
+
+import threading
+
+from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
 
 # import http.client
 
@@ -632,37 +637,37 @@ def get_number_of_findings(x):
 #get data findings
 @st.cache_resource
 def get_data_findings(config):
-    logging.getLogger().debug("get data findings")
+    logging.getLogger().debug("init dashboard")
 
-    get_token(config)
+    # get_token(config)
 
-    resources = get_resources(config, config['wizio_project_id']) 
+    # resources = get_resources(config, config['wizio_project_id']) 
     
-    resources_df = pd.DataFrame(resources)
+    # resources_df = pd.DataFrame(resources)
 
-    resources_df['externalId'] = resources_df['graphEntity'].apply(get_external_id)
+    # resources_df['externalId'] = resources_df['graphEntity'].apply(get_external_id)
 
-    reports = get_report(config, config['wizio_project_id']) 
+    # reports = get_report(config, config['wizio_project_id']) 
 
-    data_scan_df = reports['DATA_SCAN']
+    # data_scan_df = reports['DATA_SCAN']
 
-    data_scan_resources_df = data_scan_df.set_index('Resource External ID') .join(resources_df.set_index('externalId'))
+    # data_scan_resources_df = data_scan_df.set_index('Resource External ID') .join(resources_df.set_index('externalId'))
 
-    data_scan_resources_df.reset_index(inplace=True)
+    # data_scan_resources_df.reset_index(inplace=True)
 
-    data_scan_resources_df2=pd.json_normalize(data_scan_resources_df['graphEntity'])
+    # data_scan_resources_df2=pd.json_normalize(data_scan_resources_df['graphEntity'])
 
-    data_scan_resources_df2[['Finding ID', 'Category', 'Classifier', 'Unique Matches', 'Total Matches', 'Severity', 'Finding Examples']]= data_scan_resources_df[['ID', 'Category', 'Classifier', 'Unique Matches', 'Total Matches', 'Severity', 'Finding Examples']]
+    # data_scan_resources_df2[['Finding ID', 'Category', 'Classifier', 'Unique Matches', 'Total Matches', 'Severity', 'Finding Examples']]= data_scan_resources_df[['ID', 'Category', 'Classifier', 'Unique Matches', 'Total Matches', 'Severity', 'Finding Examples']]
 
-    data_scan_resources_df2 = data_scan_resources_df2.rename(lambda x: x.replace('properties.','_'), axis='columns')
+    # data_scan_resources_df2 = data_scan_resources_df2.rename(lambda x: x.replace('properties.','_'), axis='columns')
 
-    data_scan_resources_df2['Examples Count'] = data_scan_resources_df2['Finding Examples'].apply(get_number_of_findings)
+    # data_scan_resources_df2['Examples Count'] = data_scan_resources_df2['Finding Examples'].apply(get_number_of_findings)
 
-    data_scan_resources_df2['_creationYYMM']=data_scan_resources_df2['_creationDate'].str[0:7]
+    # data_scan_resources_df2['_creationYYMM']=data_scan_resources_df2['_creationDate'].str[0:7]
 
-    #data_scan_resources_df2.to_csv('datascanresources2.csv', index=False)
+    # data_scan_resources_df2.to_csv('datascanresources2.csv', index=False)
 
-    #data_scan_resources_df2 = pd.read_csv('datascanresources2.csv')  
+    data_scan_resources_df2 = pd.read_csv('datascanresources2.csv')  
 
     return data_scan_resources_df2
 
@@ -1017,6 +1022,10 @@ def show_dashboard(config):
         
         st.dataframe(data_scan_resources_df2[columns].pivot_table(values=["Unique Matches","Total Matches"], index=["name","Severity"], columns="Classifier", aggfunc="sum"))
 
+
+        #st.write(data_scan_resources_df2[columns].pivot_table(values=["Unique Matches","Total Matches"], index=["name","Severity"], columns="Classifier", aggfunc="sum").to_html())
+
+        
         #group 6
         with st.expander("See details"):
             columns=['id','name','type','_externalId','_nativeType','_kind','_cloudPlatform','_subscriptionExternalId','_region','__environments','_isManaged','_isPaaS','_creationDate','Finding ID','Category','Classifier','Severity','Unique Matches','Total Matches','Finding Examples','Examples Count']
@@ -1069,7 +1078,26 @@ def do_classifier(classifier, category, severity, entries, importService):
 
     if severity not in entries[classifier]['attributes']:
         entries[classifier]['attributes'].append(severity)
-        # TODO: add attributes
+        importService.add_attributes(entries[classifier]['entry'], 'Severity', severity, 'string')
+    
+
+#do system
+def do_system(system, platform, account, domain, community, entries, importService):
+    if system not in entries:
+
+        entries[system] = {
+            "entry": importService.get_asset(community, domain, "System", system, system),
+            "relations": [],
+            "attributes": []
+        }
+
+    if platform not in entries[system]['attributes']:
+        entries[system]['attributes'].append(platform)
+        importService.add_attributes(entries[system]['entry'], 'Platform', platform, 'string')
+
+    if account not in entries[system]['attributes']:
+        entries[system]['attributes'].append(account)
+        importService.add_attributes(entries[system]['entry'], 'Account Name', account, 'string')
 
 
 #do file storage
@@ -1087,11 +1115,15 @@ def do_filestorage(bucket, region, cdate, system, domain, community, entries, im
 
     if region not in entries[bucket]['attributes']:
         entries[bucket]['attributes'].append(region)
-        # TODO: add attributes
+        importService.add_attributes(entries[bucket]['entry'], 'Region', region, 'string')
+
+    if cdate not in entries[bucket]['attributes']:
+        entries[bucket]['attributes'].append(cdate)
+        importService.add_attributes(entries[bucket]['entry'], 'Created At', cdate, 'string')
 
 
 #do storage container
-def do_storagecontainer(bucket, region, cdate, system, domain, community, entries, importService):
+def do_storagecontainer(bucket, region, cdate, system, category, classifier, domain, community, entries, importService):
     if bucket not in entries:
         entries[bucket] = {
             "entry": importService.get_asset(community, domain, "S3 Bucket", bucket, bucket),
@@ -1103,13 +1135,25 @@ def do_storagecontainer(bucket, region, cdate, system, domain, community, entrie
         entries[bucket]['relations'].append(system)
         importService.add_relations(entries[bucket]['entry'], "00000000-0000-0000-0001-002600000000", "SOURCE", domain, community, system)
 
+    if category not in entries[bucket]['relations']:
+        entries[bucket]['relations'].append(category)
+        importService.add_relations(entries[bucket]['entry'], "01930192-86fb-77b0-8baf-30a80dccb864", "TARGET", "Data categories", "Privacy and Risk community", category)
+
+    if classifier not in entries[bucket]['relations']:
+        entries[bucket]['relations'].append(classifier)
+        importService.add_relations(entries[bucket]['entry'], "01930192-f332-70fc-8572-9f7283c4cfd4", "TARGET",  "Business Data Models", "Data Architects community", classifier)
+
     if region not in entries[bucket]['attributes']:
         entries[bucket]['attributes'].append(region)
-        # TODO: add attributes
+        importService.add_attributes(entries[bucket]['entry'], 'Region', region, 'string')
+
+    if cdate not in entries[bucket]['attributes']:
+        entries[bucket]['attributes'].append(cdate)
+        importService.add_attributes(entries[bucket]['entry'], 'Created At', cdate, 'string')
 
 
 #do directory
-def do_directory(bucket, region, cdate, system, domain, community, entries, importService):
+def do_directory(bucket, region, cdate, system, category, classifier, domain, community, entries, importService):
     if bucket not in entries:
         entries[bucket] = {
             "entry": importService.get_asset(community, domain, "Directory", bucket, "/"),
@@ -1121,38 +1165,149 @@ def do_directory(bucket, region, cdate, system, domain, community, entries, impo
         entries[bucket]['relations'].append(system)
         importService.add_relations(entries[bucket]['entry'], "00000000-0000-0000-0001-002600000001", "SOURCE", domain, community, system)
 
+    if category not in entries[bucket]['relations']:
+        entries[bucket]['relations'].append(category)
+        importService.add_relations(entries[bucket]['entry'], "01930192-86fb-77b0-8baf-30a80dccb864", "TARGET", "Data categories", "Privacy and Risk community", category)
+
+    if classifier not in entries[bucket]['relations']:
+        entries[bucket]['relations'].append(classifier)
+        importService.add_relations(entries[bucket]['entry'], "01930192-f332-70fc-8572-9f7283c4cfd4", "TARGET",  "Business Data Models", "Data Architects community", classifier)
+
     if region not in entries[bucket]['attributes']:
         entries[bucket]['attributes'].append(region)
-        # TODO: add attributes
+        importService.add_attributes(entries[bucket]['entry'], 'Region', region, 'string')
+
+    if cdate not in entries[bucket]['attributes']:
+        entries[bucket]['attributes'].append(cdate)
+        importService.add_attributes(entries[bucket]['entry'], 'Created At', cdate, 'string')
+
+
+#do measure
+def do_measure(bucket, classifier, unique, total, domain, community, entries, importService):
+    entries[f"{bucket}:{classifier}"] = {
+        "entry": [
+            importService.get_asset("Governance council", "New Data Findings Metrics", "Measure", f"{bucket}:{classifier}:Unique Matches", f"{classifier} Unique Matches"),
+            importService.get_asset("Governance council", "New Data Findings Metrics", "Measure", f"{bucket}:{classifier}:Total Matches", f"{classifier} Total Matches"),
+        ]
+    }
+
+    importService.add_attributes(entries[f"{bucket}:{classifier}"]['entry'][0], 'Count', unique, 'string')
+    importService.add_attributes(entries[f"{bucket}:{classifier}"]['entry'][1], 'Count', total, 'string')
+
+    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][0], "01930b23-1a84-7d44-b817-275206442bf6", "TARGET",  "Business Data Models", "Data Architects community", classifier)
+    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][0], "01930b24-2617-722b-9502-8c30d4b3818c", "SOURCE",  domain, community, bucket)
+
+    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][1], "01930b23-1a84-7d44-b817-275206442bf6", "TARGET",  "Business Data Models", "Data Architects community", classifier)
+    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][1], "01930b24-2617-722b-9502-8c30d4b3818c", "SOURCE",  domain, community, bucket)
+
+
+#do dimension
+def do_dimension(classifier, entries, importService):
+    if classifier not in entries:
+        entries[classifier] = {
+            "entry": importService.get_asset("Governance council", "Data Findings Dimensions", "Data Findings Dimension", classifier, classifier)
+        }
+
+
+#do metric
+def do_metric(bucket, classifier, unique, total, domain, community, entries, importService):
+    entries[f"{bucket}:{classifier}"] = {
+        "entry": [
+            importService.get_asset("Governance council", "Data Findings Rules", "Data Findings Rule", f"{bucket}:{classifier}:Unique Matches", f"{classifier} Unique Matches"),
+            importService.get_asset("Governance council", "Data Findings Rules", "Data Findings Rule", f"{bucket}:{classifier}:Total Matches", f"{classifier} Total Matches"),
+
+            importService.get_asset("Governance council", "Data Findings Metrics", "Data Findings Metric", f"{bucket}:{classifier}:Unique Matches", f"{classifier} Unique Matches"),
+            importService.get_asset("Governance council", "Data Findings Metrics", "Data Findings Metric", f"{bucket}:{classifier}:Total Matches", f"{classifier} Total Matches"),
+        ]
+    }
+    
+    # #rule applies to asset directory
+    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][0], "00000000-0000-0000-0000-000000007018", "SOURCE",  domain, community, bucket)
+    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][1], "00000000-0000-0000-0000-000000007018", "SOURCE",  domain, community, bucket)
+
+    # # metric passing fraction
+    importService.add_attributes(entries[f"{bucket}:{classifier}"]['entry'][2], 'Passing Fraction', unique, 'string')
+    importService.add_attributes(entries[f"{bucket}:{classifier}"]['entry'][3], 'Passing Fraction', total, 'string')
+
+    # # metric classified by dimension
+    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][2], "01931f87-3dca-7b65-a03c-dce0146ade76", "TARGET",  "Data Findings Dimensions", "Governance council", classifier)
+    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][3], "01931f87-3dca-7b65-a03c-dce0146ade76", "TARGET",  "Data Findings Dimensions", "Governance council", classifier)
+
+    # # metric executes rule
+    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][2], "01931feb-4b9a-7b6b-a456-e1a2759ceca4", "SOURCE",  "Data Findings Rules", "Governance council", f"{bucket}:{classifier}:Unique Matches")
+    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][3], "01931feb-4b9a-7b6b-a456-e1a2759ceca4", "SOURCE",  "Data Findings Rules", "Governance council", f"{bucket}:{classifier}:Total Matches")
+
+
+#show dialog
+@st.dialog("Choose")
+def show_dialog(communities):
+    option = st.selectbox(
+        label="Select the community where you want to find your storage on ",
+        options=sorted([f"{k}" for k, v in communities.items()]),
+        index=None
+    )
+    
+    if not option:
+        st.warning("Please specify.") & st.stop()
+
+    if st.button("Submit"):
+        st.session_state.submitted = True
+        st.session_state.option = option
+        st.rerun()
+
+
+#show progress
+def show_progress():
+    progress = 20
+
+    bar = st.progress(progress)
+    
+    while progress != 100:
+        files = list(filter(lambda x: 'beam' not in x.lower(), glob.glob(f'./runs/*.json.step.*')))
+        
+        progress = len(files)*10 +20
+
+        bar.progress(progress, text=f'{progress//10} of 10')
+
+        time.sleep(1)
+
+    bar.progress(100)
+
+    time.sleep(1)
+
 
 
 #do stuff
 def do_stuff(config, data_scan_resources_df2):
+    ctx = get_script_run_ctx()
+
+    t = threading.Thread(target=show_progress,daemon=True)
+
+    add_script_run_ctx(t, ctx)
+
+    t.start()
+
+
     logging.getLogger().debug("do stuff")
 
     collibra = get_collibra(get_config())
-
+    
     communities = {}
 
     response = collibra.get("session").get(f"{collibra.get('endpoint')}/communities")
 
     _ = [x(communities, community.get("name"), community) for community in response.json()["results"]]
 
-    col1, col2, col3 = st.columns([1,1,1])
+    st.write("")
 
-    with col2:
-        with st.form("start"):
-            option = st.selectbox(
-                label="Select the community where you want to find your storage on ",
-                options=sorted([f"{k}" for k, v in communities.items()]),
-                index=None
-            )
+    if 'submitted' not in st.session_state or not st.session_state.submitted:
+        if st.button("Start", type='primary'):
+            show_dialog(communities)
+        
+        st.stop()
 
-            submitted = st.form_submit_button("Start", type='primary')   
-            
-        if not submitted:
-            st.stop()
 
+    option = st.session_state.option
 
     communityToQuery = (communities.get(option) if option else st.warning("Please specify.") & st.stop())
 
@@ -1184,13 +1339,15 @@ def do_stuff(config, data_scan_resources_df2):
     _= [domainEntries.append(importService.get_domain(communityToQuery['name'], "Technology Asset Domain", str(e))) for e in domains]
 
     #systems 
+    entries = {}
+
+    _= [do_system(str(e[0]), e[1], str(e[2]), str(e[3]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_subscriptionExternalId', '_cloudPlatform', '_subscriptionExternalId', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
+
     systemEntries = []
 
-    systems = data_scan_resources_df2['_subscriptionExternalId'].drop_duplicates()
-
-    _= [systemEntries.append(importService.get_asset(communityToQuery['name'], str(e), "System", str(e), str(e))) for e in systems]
-
-    importService.save(domainEntries+systemEntries, "./runs", "system", 1, True)
+    _= [systemEntries.append(v['entry']) for k,v in entries.items()]
+    
+    importService.save(systemEntries, "./runs", "system", 1, True)
 
     #file storages
     entries = {}
@@ -1206,7 +1363,7 @@ def do_stuff(config, data_scan_resources_df2):
     #storage containers
     entries = {}
 
-    _= [do_storagecontainer(f"s3://{e[0]}", e[1], e[2], str(e[3]), str(e[4]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_externalId', '_region', '_creationDate', '_externalId', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
+    _= [do_storagecontainer(f"s3://{e[0]}", e[1], e[2], str(e[3]), e[4], e[5], str(e[6]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_externalId', '_region', '_creationDate', '_externalId', 'Category', 'Classifier', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
 
     storageContainerEntries = []
 
@@ -1217,21 +1374,62 @@ def do_stuff(config, data_scan_resources_df2):
     #directories
     entries = {}
 
-    _= [do_directory(f"s3://{e[3]}/", e[1], e[2], f"s3://{e[3]}", str(e[4]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_externalId', '_region', '_creationDate', '_externalId', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
+    _= [do_directory(f"s3://{e[3]}/", e[1], e[2], f"s3://{e[3]}", e[4], e[5], str(e[6]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_externalId', '_region', '_creationDate', '_externalId', 'Category', 'Classifier', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
 
     directoryEntries = []
 
-    _= [directoryEntries.append(importService.get_asset(communityToQuery['name'], str(e[1]), "Directory", f"s3://{e[0]}/", "/")) for e in bucketsFindings[['name', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
-
-    _= [importService.add_relations(e, "00000000-0000-0000-0001-002600000001", "SOURCE", e.identifier.domain.name, communityToQuery['name'], e.identifier.name[:-1]) for e in directoryEntries]
+    _= [directoryEntries.append(v['entry']) for k,v in entries.items()]
 
     importService.save(directoryEntries, "./runs", "directory", 4, True)
 
-    # TODO: add missing assets
-    # TODO: add attributes and relations
+    #measures
+    entries = {}
+
+    _= [do_measure(f"s3://{e[0]}/", e[1], e[2], e[3], str(e[4]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_externalId', 'Classifier', 'Unique Matches', 'Total Matches', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
+
+    measureEntries = []
+
+    _= [measureEntries.append(v['entry']) for k,v in entries.items()]
+
+    importService.save(measureEntries, "./runs", "measure", 5, True)
+
+    #dimensions
+    entries = {}
+
+    _= [do_dimension(e[0], entries, importService) for e in bucketsFindings[['Classifier']].drop_duplicates().itertuples(index=False)]
+
+    dimensionEntries = []
+
+    _= [dimensionEntries.append(v['entry']) for k,v in entries.items()]
+    
+    importService.save(dimensionEntries, "./runs", "dimension", 6, True)
+
+    #metrics
+    entries = {}
+
+    _= [do_metric(f"s3://{e[0]}/", e[1], e[2], e[3], str(e[4]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_externalId', 'Classifier', 'Unique Matches', 'Total Matches', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
+
+    metricEntries = []
+
+    _= [metricEntries.append(v['entry']) for k,v in entries.items()]
+    
+    importService.save(metricEntries, "./runs", "metric", 7, True)
+
+    # TODO: data finding rule and metric: rule connected with directory and metric, metric connected with dimension and with passing fraction
+
     # TODO: add finding examples
 
     HarvesterService().run(config, "./runs")
+
+    t.join()
+
+    with st.expander("See results"):
+        file = sorted(glob.glob(f'./runs/*.results'))[-1] 
+
+        with open(file, "r") as f:
+            st.json(json.load(f), expanded=True)
+
+    st.stop()
 
 
 #main   
