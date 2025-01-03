@@ -683,7 +683,26 @@ def get_data_findings(config):
 
     # data_scan_resources_ready_df = pd.read_csv('datascanresourcesready.csv')  
 
-    return data_scan_resources_ready_df
+    #buckets only
+    # data_scan_resources_exploded_df = data_scan_resources_ready_df.query("type == 'BUCKET'")
+
+    # data_scan_resources_exploded_df['Finding Examples'] = data_scan_resources_exploded_df['Finding Examples'].apply(lambda x: eval(x) if x is not None else None)
+
+    # columns=['id', 'name', 'type', '_subscriptionExternalId', 'Category', 'Classifier', 'Finding Examples']
+
+    # data_scan_resources_exploded_df = data_scan_resources_exploded_df[columns].explode('Finding Examples', ignore_index=True)
+
+    # exploded_df = pd.json_normalize(data_scan_resources_exploded_df['Finding Examples'])
+
+    # columns=['id', 'name', 'type', '_subscriptionExternalId', 'Category', 'Classifier']
+        
+    # data_scan_resources_exploded_df = pd.concat([data_scan_resources_exploded_df[columns], exploded_df[['key', 'path']]], axis=1)
+
+    # session.write_pandas(data_scan_resources_exploded_df, "DATA_SCAN_RESOURCES_EXPLODED", auto_create_table=True, overwrite=True)    
+
+    data_scan_resources_exploded_df = session.table("DATA_SCAN_RESOURCES_EXPLODED").to_pandas()
+
+    return data_scan_resources_ready_df, data_scan_resources_exploded_df
 
 
 #show dashboard
@@ -702,7 +721,7 @@ def show_dashboard(config):
             </style>
         """
 
-        data_scan_resources_ready_df = get_data_findings(config)
+        data_scan_resources_ready_df, data_scan_resources_exploded_df = get_data_findings(config)
 
         resources_per_cloud_platform = data_scan_resources_ready_df[['_cloudPlatform','id']].drop_duplicates().groupby(by=['_cloudPlatform']).count().reset_index().rename(columns={"id": "count"})
 
@@ -1023,9 +1042,22 @@ def show_dashboard(config):
             """            
             )
 
-        st.write("#")
+        st.write("")
 
         #group 5
+        # with st.expander("Findings"):
+        #     columns=['id','name','type','_externalId','_nativeType','_kind','_cloudPlatform','_subscriptionExternalId','_region','__environments','_isManaged','_isPaaS','_creationDate','Finding ID','Category','Classifier','Severity','Unique Matches','Total Matches','Finding Examples','Examples Count']
+
+        #     st.data_editor(data_scan_resources_ready_df[columns],hide_index=True,column_config={"id":"Resource Id","name":"Resource Name","type":"Resource Type","_externalId":"Resource External Id","_nativeType":"Resource Native Type","_kind":"Resource Kind","_cloudPlatform":"Resource Platform","_subscriptionExternalId":"Resource Account","_region":"Resource Region","__environments":"Resource Environment","_isManaged":"Is Resource Managed","_isPaaS":"Is Resource PaaS","_creationDate": "Resource Creation Date","Finding ID": "Finding Id","Category": "Finding Category","Classifier": "Finding Classifier","Severity": "Finding Severity"})
+            
+        # st.write("")
+
+        with st.expander("Finding Examples"):
+            st.dataframe(data_scan_resources_exploded_df,hide_index=True,column_config={"id":"Resource Id","name":"Resource Name","type":"Resource Type","_subscriptionExternalId":"Resource Account","Category": "Finding Category","Classifier": "Finding Classifier","key": "File Key","path":" File Path"})
+            
+        st.write("#")
+
+        #group 6
         st.markdown(
             """
             ###### Playground
@@ -1038,13 +1070,6 @@ def show_dashboard(config):
 
         #st.write(data_scan_resources_ready_df[columns].pivot_table(values=["Unique Matches","Total Matches"], index=["name","Severity"], columns="Classifier", aggfunc="sum").to_html())
         
-        #group 6
-        with st.expander("See details"):
-            columns=['id','name','type','_externalId','_nativeType','_kind','_cloudPlatform','_subscriptionExternalId','_region','__environments','_isManaged','_isPaaS','_creationDate','Finding ID','Category','Classifier','Severity','Unique Matches','Total Matches','Finding Examples','Examples Count']
-
-            st.data_editor(data_scan_resources_ready_df[columns],hide_index=True,column_config={"id":"Resource Id","name":"Resource Name","type":"Resource Type","_externalId":"Resource External Id","_nativeType":"Resource Native Type","_kind":"Resource Kind","_cloudPlatform":"Resource Platform","_subscriptionExternalId":"Resource Account","_region":"Resource Region","__environments":"Resource Environment","_isManaged":"Is Resource Managed","_isPaaS":"Is Resource PaaS","_creationDate": "Resource Creation Date","Finding ID": "Finding Id","Category": "Finding Category","Classifier": "Finding Classifier","Severity": "Finding Severity"})
-            
-        st.write("")
 
         #do stuff
         do_stuff(config, data_scan_resources_ready_df)
@@ -1322,19 +1347,20 @@ def do_stuff(config, data_scan_resources_ready_df):
 
     communityToQuery = (communities.get(option) if option else st.warning("Please specify.") & st.stop())
 
-    bucketsFindings = data_scan_resources_ready_df.query("type == 'BUCKET'")
+    #buckets only
+    data_scan_resources_ready_df = data_scan_resources_ready_df.query("type == 'BUCKET'")
 
     importService = ImportService(time.strftime("%Y%m%d"), 1, 150000)
 
     #categories
     categoryEntries = []
 
-    _= [categoryEntries.append(importService.get_asset("Privacy and Risk community", "Data categories", "Data Category", e, e)) for e in bucketsFindings['Category'].drop_duplicates()]
+    _= [categoryEntries.append(importService.get_asset("Privacy and Risk community", "Data categories", "Data Category", e, e)) for e in data_scan_resources_ready_df['Category'].drop_duplicates()]
 
     #classifiers
     entries = {}
 
-    _= [do_classifier(e[0], e[1], e[2], entries, importService) for e in bucketsFindings[['Classifier', 'Category', 'Severity']].drop_duplicates().itertuples(index=False)]
+    _= [do_classifier(e[0], e[1], e[2], entries, importService) for e in data_scan_resources_ready_df[['Classifier', 'Category', 'Severity']].drop_duplicates().itertuples(index=False)]
 
     classifierEntries = []
 
@@ -1352,7 +1378,7 @@ def do_stuff(config, data_scan_resources_ready_df):
     #systems 
     entries = {}
 
-    _= [do_system(str(e[0]), e[1], str(e[2]), str(e[3]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_subscriptionExternalId', '_cloudPlatform', '_subscriptionExternalId', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
+    _= [do_system(str(e[0]), e[1], str(e[2]), str(e[3]), communityToQuery['name'], entries, importService) for e in data_scan_resources_ready_df[['_subscriptionExternalId', '_cloudPlatform', '_subscriptionExternalId', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
 
     systemEntries = []
 
@@ -1363,7 +1389,7 @@ def do_stuff(config, data_scan_resources_ready_df):
     #file storages
     entries = {}
 
-    _= [do_filestorage(e[0], e[1], e[2], str(e[3]), str(e[4]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_externalId', '_region', '_creationDate', '_subscriptionExternalId', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
+    _= [do_filestorage(e[0], e[1], e[2], str(e[3]), str(e[4]), communityToQuery['name'], entries, importService) for e in data_scan_resources_ready_df[['_externalId', '_region', '_creationDate', '_subscriptionExternalId', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
 
     fileStorageEntries = []
 
@@ -1374,7 +1400,7 @@ def do_stuff(config, data_scan_resources_ready_df):
     #storage containers
     entries = {}
 
-    _= [do_storagecontainer(f"s3://{e[0]}", e[1], e[2], str(e[3]), e[4], e[5], str(e[6]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_externalId', '_region', '_creationDate', '_externalId', 'Category', 'Classifier', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
+    _= [do_storagecontainer(f"s3://{e[0]}", e[1], e[2], str(e[3]), e[4], e[5], str(e[6]), communityToQuery['name'], entries, importService) for e in data_scan_resources_ready_df[['_externalId', '_region', '_creationDate', '_externalId', 'Category', 'Classifier', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
 
     storageContainerEntries = []
 
@@ -1385,7 +1411,7 @@ def do_stuff(config, data_scan_resources_ready_df):
     #directories
     entries = {}
 
-    _= [do_directory(f"s3://{e[3]}/", e[1], e[2], f"s3://{e[3]}", e[4], e[5], str(e[6]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_externalId', '_region', '_creationDate', '_externalId', 'Category', 'Classifier', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
+    _= [do_directory(f"s3://{e[3]}/", e[1], e[2], f"s3://{e[3]}", e[4], e[5], str(e[6]), communityToQuery['name'], entries, importService) for e in data_scan_resources_ready_df[['_externalId', '_region', '_creationDate', '_externalId', 'Category', 'Classifier', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
 
     directoryEntries = []
 
@@ -1396,7 +1422,7 @@ def do_stuff(config, data_scan_resources_ready_df):
     #measures
     entries = {}
 
-    _= [do_measure(f"s3://{e[0]}/", e[1], e[2], e[3], str(e[4]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_externalId', 'Classifier', 'Unique Matches', 'Total Matches', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
+    _= [do_measure(f"s3://{e[0]}/", e[1], e[2], e[3], str(e[4]), communityToQuery['name'], entries, importService) for e in data_scan_resources_ready_df[['_externalId', 'Classifier', 'Unique Matches', 'Total Matches', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
 
     measureEntries = []
 
@@ -1407,7 +1433,7 @@ def do_stuff(config, data_scan_resources_ready_df):
     #dimensions
     entries = {}
 
-    _= [do_dimension(e[0], entries, importService) for e in bucketsFindings[['Classifier']].drop_duplicates().itertuples(index=False)]
+    _= [do_dimension(e[0], entries, importService) for e in data_scan_resources_ready_df[['Classifier']].drop_duplicates().itertuples(index=False)]
 
     dimensionEntries = []
 
@@ -1418,7 +1444,7 @@ def do_stuff(config, data_scan_resources_ready_df):
     #metrics
     entries = {}
 
-    _= [do_metric(f"s3://{e[0]}/", e[1], e[2], e[3], str(e[4]), communityToQuery['name'], entries, importService) for e in bucketsFindings[['_externalId', 'Classifier', 'Unique Matches', 'Total Matches', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
+    _= [do_metric(f"s3://{e[0]}/", e[1], e[2], e[3], str(e[4]), communityToQuery['name'], entries, importService) for e in data_scan_resources_ready_df[['_externalId', 'Classifier', 'Unique Matches', 'Total Matches', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
 
     metricEntries = []
 
@@ -1447,6 +1473,7 @@ def do_stuff(config, data_scan_resources_ready_df):
             st.markdown("[take a closer look](https://print.collibra.com/profile/9693d5ce-9fb4-4e97-b46e-7218526eda14/activities)")
             
 
+
     st.stop()
 
 
@@ -1465,32 +1492,16 @@ def main():
 if __name__ == '__main__':
     st.set_page_config(layout="wide")
     
-    #main()    
+    main()    
 
-    session = st.connection("snowflake").session()
+    # session = st.connection("snowflake").session()
 
-    data_scan_resources_ready_df = session.table("DATA_SCAN_RESOURCES_READY").to_pandas()
+    # data_scan_resources_exploded_df = session.table("DATA_SCAN_RESOURCES_EXPLODED").to_pandas()
 
+    # st.dataframe(data_scan_resources_exploded_df)
     
 
     
-    data_scan_resources_exploded_df = data_scan_resources_ready_df.query("type == 'BUCKET'")
-
-    data_scan_resources_exploded_df['Finding Examples'] = data_scan_resources_exploded_df['Finding Examples'].apply(lambda x: eval(x) if x is not None else None)
-
-    columns=['id', 'name', 'type', '_subscriptionExternalId', 'Category', 'Classifier', 'Finding Examples']
-
-    data_scan_resources_exploded_df = data_scan_resources_exploded_df[columns].explode('Finding Examples', ignore_index=True)
-
-    exploded_df = pd.json_normalize(data_scan_resources_exploded_df['Finding Examples'])
-
-    columns=['id', 'name', 'type', '_subscriptionExternalId', 'Category', 'Classifier']
-        
-    data_scan_resources_exploded_df = pd.concat([data_scan_resources_exploded_df[columns], exploded_df[['key', 'path']]], axis=1)
-
-    session.write_pandas(data_scan_resources_exploded_df, "DATA_SCAN_RESOURCES_EXPLODED", auto_create_table=True, overwrite=True)
-
-    st.dataframe(data_scan_resources_exploded_df)
     
 
 
