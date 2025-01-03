@@ -1,7 +1,6 @@
 import os
 import json
 from datetime import datetime
-from collections import defaultdict
 
 from models import Community, Domain, Identifier, Type, Entry, Step
 
@@ -10,14 +9,12 @@ from typing import List, Dict, Optional, Any
 
 import streamlit as st
 
-
 @dataclass
 class ImportService:
     run_id: Optional[str] = None
     custom_asset_import_maximum_jobs: Optional[str] = None
     custom_asset_import_maximum_entries: Optional[str] = None
     steps: Optional[dict] = field(default_factory=dict) 
-
     def get_domain(self, domain_community, domain_type, domain_name):
         community = Community()
         community.name=domain_community
@@ -35,7 +32,6 @@ class ImportService:
         entry.type = type_
 
         return entry
-
 
     def get_asset(self, asset_community, asset_domain, asset_type, asset_name, asset_display_name):
         community = Community()
@@ -60,33 +56,18 @@ class ImportService:
 
         return entry
 
-    def add_attributes(self, resource, entry, attribute_maps):
-        for k, v in attribute_maps.items():
-            self.add_attributes(resource, entry, k, v)
+    def add_attributes(self, entry, name, value, type):
+        if name not in entry.attributes:
+            entry.attributes[name] = []
 
-    def add_attributes(self, resource, entry, k, v):
-        t = v.split(":")
+        if type == "date":
+            entry.attributes[name].append(self.get_date_as_string(int(value)))
 
-        if t[0] == "date":
-            try:
-                entry.add_attributes(k, [self.get_date_as_string(int(resource[t[1]]))])
-            except Exception:
-                pass
+        if type == "array":
+            entry.attributes[name].append(json.dumps(value, indent=4))
 
-            return
-
-        if t[0] == "array":
-            try:
-                entry.add_attributes(k, [json.dumps(resource[t[1]], indent=4)])
-            except Exception:
-                pass
-            return
-
-        if t[0] == "string":
-            try:
-                entry.add_attributes(k, [resource[t[1]]])
-            except Exception:
-                pass
+        if type == "string":
+            entry.attributes[name].append(value)
 
     def add_relations(self, entry, relation_type, relation_target, asset_domain, asset_community, asset_name):
         name = f"{relation_type}:{relation_target}"
@@ -101,14 +82,10 @@ class ImportService:
         identifier = Identifier()
         identifier.name = asset_name
         identifier.domain = domain
-
-        #entry.relations=[]
-        #entry.relations.append([name, [identifier]])
         
         if name not in entry.relations:
             entry.relations[name] = []
 
-        #entry.relations[name].append([identifier])
         entry.relations[name].append(identifier)
 
     def get_date_as_string(self, unix_timestamp):
@@ -162,5 +139,4 @@ class ImportService:
 
     def __str__(self):
         return f"ImportService [customAssetImportMaximumJobs={self.custom_asset_import_maximum_jobs}, customAssetImportMaximumEntries={self.custom_asset_import_maximum_entries}, runId={self.run_id}, steps={self.steps}]"
-    
     
