@@ -7,6 +7,8 @@ import codecs
 import logging
 import requests
 import glob
+import os
+import shutil
 
 import pandas as pd
 
@@ -27,6 +29,9 @@ from harvester import HarvesterService
 import threading
 
 from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
+
+from streamlit_lottie import st_lottie
+
 
 # import http.client
 
@@ -675,26 +680,25 @@ def get_data_findings(config):
 
     # data_scan_resources_ready_df['_creationYYMM']=data_scan_resources_ready_df['_creationDate'].str[0:7]
 
-    # session.write_pandas(data_scan_resources_ready_df, "DATA_SCAN_RESOURCES_READY", auto_create_table=True, overwrite=True)
-
-    data_scan_resources_ready_df = session.table("DATA_SCAN_RESOURCES_READY").to_pandas()
-
     # data_scan_resources_ready_df.to_csv('datascanresourcesready.csv', index=False)
 
     # data_scan_resources_ready_df = pd.read_csv('datascanresourcesready.csv')  
 
-    #buckets only
-    # data_scan_resources_exploded_df = data_scan_resources_ready_df.query("type == 'BUCKET'")
+    # session.write_pandas(data_scan_resources_ready_df, "DATA_SCAN_RESOURCES_READY", auto_create_table=True, overwrite=True)
+
+    data_scan_resources_ready_df = session.table("DATA_SCAN_RESOURCES_READY").to_pandas()
+
+    # data_scan_resources_exploded_df = data_scan_resources_ready_df.query("type in ('BUCKET', 'DATABASE', 'DB_SERVER')")
 
     # data_scan_resources_exploded_df['Finding Examples'] = data_scan_resources_exploded_df['Finding Examples'].apply(lambda x: eval(x) if x is not None else None)
 
-    # columns=['id', 'name', 'type', '_subscriptionExternalId', 'Category', 'Classifier', 'Finding Examples']
+    # columns=['id', 'name', 'type', '_subscriptionExternalId', 'Finding ID', 'Category', 'Classifier', 'Finding Examples']
 
     # data_scan_resources_exploded_df = data_scan_resources_exploded_df[columns].explode('Finding Examples', ignore_index=True)
 
     # exploded_df = pd.json_normalize(data_scan_resources_exploded_df['Finding Examples'])
 
-    # columns=['id', 'name', 'type', '_subscriptionExternalId', 'Category', 'Classifier']
+    # columns=['id', 'name', 'type', '_subscriptionExternalId', 'Finding ID', 'Category', 'Classifier']
         
     # data_scan_resources_exploded_df = pd.concat([data_scan_resources_exploded_df[columns], exploded_df[['key', 'path']]], axis=1)
 
@@ -1042,37 +1046,35 @@ def show_dashboard(config):
             """            
             )
 
-        st.write("")
-
-        #group 5
-        # with st.expander("Findings"):
-        #     columns=['id','name','type','_externalId','_nativeType','_kind','_cloudPlatform','_subscriptionExternalId','_region','__environments','_isManaged','_isPaaS','_creationDate','Finding ID','Category','Classifier','Severity','Unique Matches','Total Matches','Finding Examples','Examples Count']
-
-        #     st.data_editor(data_scan_resources_ready_df[columns],hide_index=True,column_config={"id":"Resource Id","name":"Resource Name","type":"Resource Type","_externalId":"Resource External Id","_nativeType":"Resource Native Type","_kind":"Resource Kind","_cloudPlatform":"Resource Platform","_subscriptionExternalId":"Resource Account","_region":"Resource Region","__environments":"Resource Environment","_isManaged":"Is Resource Managed","_isPaaS":"Is Resource PaaS","_creationDate": "Resource Creation Date","Finding ID": "Finding Id","Category": "Finding Category","Classifier": "Finding Classifier","Severity": "Finding Severity"})
-            
-        # st.write("")
-
-        with st.expander("Finding Examples"):
-            st.dataframe(data_scan_resources_exploded_df,hide_index=True,column_config={"id":"Resource Id","name":"Resource Name","type":"Resource Type","_subscriptionExternalId":"Resource Account","Category": "Finding Category","Classifier": "Finding Classifier","key": "File Key","path":" File Path"})
-            
         st.write("#")
 
-        #group 6
+        #group 5
         st.markdown(
             """
             ###### Playground
             """
         )
         
-        columns=['name','Classifier','Unique Matches','Total Matches','Severity']
+        columns=['name', 'type', 'Classifier','Unique Matches','Total Matches','Severity']
         
-        st.dataframe(data_scan_resources_ready_df[columns].pivot_table(values=["Unique Matches","Total Matches"], index=["name","Severity"], columns="Classifier", aggfunc="sum"))
+        st.dataframe(data_scan_resources_ready_df[columns].pivot_table(values=["Unique Matches","Total Matches"], index=["name","type","Severity"], columns="Classifier", aggfunc="sum"))
 
-        #st.write(data_scan_resources_ready_df[columns].pivot_table(values=["Unique Matches","Total Matches"], index=["name","Severity"], columns="Classifier", aggfunc="sum").to_html())
+        st.write("")
+
+        #group 6
+        with st.expander("Finding Examples"):
+            st.dataframe(data_scan_resources_exploded_df,hide_index=True,column_config={"id":"Resource Id","name":"Resource Name","type":"Resource Type","_subscriptionExternalId":"Resource Account","Category": "Finding Category","Classifier": "Finding Classifier","key": "File Key","path":" File Path"})
+            
+        st.write("#")
+
+
+        #do all findings
+        do_all_findings(config, data_scan_resources_ready_df, data_scan_resources_exploded_df)
+
+        st.markdown("[Results](https://print.collibra.com/profile/9693d5ce-9fb4-4e97-b46e-7218526eda14/activities)")
         
+        st.stop()
 
-        #do stuff
-        do_stuff(config, data_scan_resources_ready_df)
 
     except Exception as error:
         raise Exception('Error: %s', error)
@@ -1099,211 +1101,53 @@ def get_collibra(config):
     return collibra
 
 
-#do classifier
-def do_classifier(classifier, category, severity, entries, importService):
-    if classifier not in entries:
-        entries[classifier] = {
-            "entry": importService.get_asset("Data Architects community", "Business Data Models", "Data Concept", classifier, classifier),
-            "relations": [],
-            "attributes": []
-        }
-
-    if category not in entries[classifier]['relations']:
-        entries[classifier]['relations'].append(category)
-        importService.add_relations(entries[classifier]['entry'], "c0e00000-0000-0000-0000-000000007316", "SOURCE", "Data categories", "Privacy and Risk community", category)
-
-    if severity not in entries[classifier]['attributes']:
-        entries[classifier]['attributes'].append(severity)
-        importService.add_attributes(entries[classifier]['entry'], 'Severity', severity, 'string')
-    
-
-#do system
-def do_system(system, platform, account, domain, community, entries, importService):
-    if system not in entries:
-
-        entries[system] = {
-            "entry": importService.get_asset(community, domain, "System", system, system),
-            "relations": [],
-            "attributes": []
-        }
-
-    if platform not in entries[system]['attributes']:
-        entries[system]['attributes'].append(platform)
-        importService.add_attributes(entries[system]['entry'], 'Platform', platform, 'string')
-
-    if account not in entries[system]['attributes']:
-        entries[system]['attributes'].append(account)
-        importService.add_attributes(entries[system]['entry'], 'Account Name', account, 'string')
-
-
-#do file storage
-def do_filestorage(bucket, region, cdate, system, domain, community, entries, importService):
-    if bucket not in entries:
-        entries[bucket] = {
-            "entry": importService.get_asset(community, domain, "S3 File System", bucket, bucket),
-            "relations": [],
-            "attributes": []
-        }
-
-    if system not in entries[bucket]['relations']:
-        entries[bucket]['relations'].append(system)
-        importService.add_relations(entries[bucket]['entry'], "00000000-0000-0000-0000-000000007054", "SOURCE", domain, community, system)
-
-    if region not in entries[bucket]['attributes']:
-        entries[bucket]['attributes'].append(region)
-        importService.add_attributes(entries[bucket]['entry'], 'Region', region, 'string')
-
-    if cdate not in entries[bucket]['attributes']:
-        entries[bucket]['attributes'].append(cdate)
-        importService.add_attributes(entries[bucket]['entry'], 'Created At', cdate, 'string')
-
-
-#do storage container
-def do_storagecontainer(bucket, region, cdate, system, category, classifier, domain, community, entries, importService):
-    if bucket not in entries:
-        entries[bucket] = {
-            "entry": importService.get_asset(community, domain, "S3 Bucket", bucket, bucket),
-            "relations": [],
-            "attributes": []
-        }
-
-    if system not in entries[bucket]['relations']:
-        entries[bucket]['relations'].append(system)
-        importService.add_relations(entries[bucket]['entry'], "00000000-0000-0000-0001-002600000000", "SOURCE", domain, community, system)
-
-    if category not in entries[bucket]['relations']:
-        entries[bucket]['relations'].append(category)
-        importService.add_relations(entries[bucket]['entry'], "01930192-86fb-77b0-8baf-30a80dccb864", "TARGET", "Data categories", "Privacy and Risk community", category)
-
-    if classifier not in entries[bucket]['relations']:
-        entries[bucket]['relations'].append(classifier)
-        importService.add_relations(entries[bucket]['entry'], "01930192-f332-70fc-8572-9f7283c4cfd4", "TARGET",  "Business Data Models", "Data Architects community", classifier)
-
-    if region not in entries[bucket]['attributes']:
-        entries[bucket]['attributes'].append(region)
-        importService.add_attributes(entries[bucket]['entry'], 'Region', region, 'string')
-
-    if cdate not in entries[bucket]['attributes']:
-        entries[bucket]['attributes'].append(cdate)
-        importService.add_attributes(entries[bucket]['entry'], 'Created At', cdate, 'string')
-
-
-#do directory
-def do_directory(bucket, region, cdate, system, category, classifier, domain, community, entries, importService):
-    if bucket not in entries:
-        entries[bucket] = {
-            "entry": importService.get_asset(community, domain, "Directory", bucket, "/"),
-            "relations": [],
-            "attributes": []
-        }
-
-    if system not in entries[bucket]['relations']:
-        entries[bucket]['relations'].append(system)
-        importService.add_relations(entries[bucket]['entry'], "00000000-0000-0000-0001-002600000001", "SOURCE", domain, community, system)
-
-    if category not in entries[bucket]['relations']:
-        entries[bucket]['relations'].append(category)
-        importService.add_relations(entries[bucket]['entry'], "01930192-86fb-77b0-8baf-30a80dccb864", "TARGET", "Data categories", "Privacy and Risk community", category)
-
-    if classifier not in entries[bucket]['relations']:
-        entries[bucket]['relations'].append(classifier)
-        importService.add_relations(entries[bucket]['entry'], "01930192-f332-70fc-8572-9f7283c4cfd4", "TARGET",  "Business Data Models", "Data Architects community", classifier)
-
-    if region not in entries[bucket]['attributes']:
-        entries[bucket]['attributes'].append(region)
-        importService.add_attributes(entries[bucket]['entry'], 'Region', region, 'string')
-
-    if cdate not in entries[bucket]['attributes']:
-        entries[bucket]['attributes'].append(cdate)
-        importService.add_attributes(entries[bucket]['entry'], 'Created At', cdate, 'string')
-
-
-#do measure
-def do_measure(bucket, classifier, unique, total, domain, community, entries, importService):
-    entries[f"{bucket}:{classifier}"] = {
-        "entry": [
-            importService.get_asset("Governance council", "New Data Findings Metrics", "Measure", f"{bucket}:{classifier}:Unique Matches", f"{classifier} Unique Matches"),
-            importService.get_asset("Governance council", "New Data Findings Metrics", "Measure", f"{bucket}:{classifier}:Total Matches", f"{classifier} Total Matches"),
-        ]
-    }
-
-    importService.add_attributes(entries[f"{bucket}:{classifier}"]['entry'][0], 'Count', unique, 'string')
-    importService.add_attributes(entries[f"{bucket}:{classifier}"]['entry'][1], 'Count', total, 'string')
-
-    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][0], "01930b23-1a84-7d44-b817-275206442bf6", "TARGET",  "Business Data Models", "Data Architects community", classifier)
-    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][0], "01930b24-2617-722b-9502-8c30d4b3818c", "SOURCE",  domain, community, bucket)
-
-    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][1], "01930b23-1a84-7d44-b817-275206442bf6", "TARGET",  "Business Data Models", "Data Architects community", classifier)
-    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][1], "01930b24-2617-722b-9502-8c30d4b3818c", "SOURCE",  domain, community, bucket)
-
-
-#do dimension
-def do_dimension(classifier, entries, importService):
-    if classifier not in entries:
-        entries[classifier] = {
-            "entry": importService.get_asset("Governance council", "Data Findings Dimensions", "Data Findings Dimension", classifier, classifier)
-        }
-
-
-#do metric
-def do_metric(bucket, classifier, unique, total, domain, community, entries, importService):
-    entries[f"{bucket}:{classifier}"] = {
-        "entry": [
-            importService.get_asset("Governance council", "Data Findings Rules", "Data Findings Rule", f"{bucket}:{classifier}:Unique Matches", f"{classifier} Unique Matches"),
-            importService.get_asset("Governance council", "Data Findings Rules", "Data Findings Rule", f"{bucket}:{classifier}:Total Matches", f"{classifier} Total Matches"),
-
-            importService.get_asset("Governance council", "Data Findings Metrics", "Data Findings Metric", f"{bucket}:{classifier}:Unique Matches", f"{classifier} Unique Matches"),
-            importService.get_asset("Governance council", "Data Findings Metrics", "Data Findings Metric", f"{bucket}:{classifier}:Total Matches", f"{classifier} Total Matches"),
-        ]
-    }
-    
-    # #rule applies to asset directory
-    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][0], "00000000-0000-0000-0000-000000007018", "SOURCE",  domain, community, bucket)
-    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][1], "00000000-0000-0000-0000-000000007018", "SOURCE",  domain, community, bucket)
-
-    # # metric passing fraction
-    importService.add_attributes(entries[f"{bucket}:{classifier}"]['entry'][2], 'Passing Fraction', unique, 'string')
-    importService.add_attributes(entries[f"{bucket}:{classifier}"]['entry'][3], 'Passing Fraction', total, 'string')
-
-    # # metric classified by dimension
-    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][2], "01931f87-3dca-7b65-a03c-dce0146ade76", "TARGET",  "Data Findings Dimensions", "Governance council", classifier)
-    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][3], "01931f87-3dca-7b65-a03c-dce0146ade76", "TARGET",  "Data Findings Dimensions", "Governance council", classifier)
-
-    # # metric executes rule
-    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][2], "01931feb-4b9a-7b6b-a456-e1a2759ceca4", "SOURCE",  "Data Findings Rules", "Governance council", f"{bucket}:{classifier}:Unique Matches")
-    importService.add_relations(entries[f"{bucket}:{classifier}"]['entry'][3], "01931feb-4b9a-7b6b-a456-e1a2759ceca4", "SOURCE",  "Data Findings Rules", "Governance council", f"{bucket}:{classifier}:Total Matches")
-
-
 #show dialog
 @st.dialog("Choose")
 def show_dialog(communities):
-    option = st.selectbox(
-        label="Select the community where you want to find your storage on ",
+    buckets_community = st.selectbox(
+        label="Select the community where you want to find your buckets on ",
         options=sorted([f"{k}" for k, v in communities.items()]),
         index=None
     )
-    
-    if not option:
+
+    if not buckets_community:
+        st.warning("Please specify.") & st.stop()
+
+    do_files = st.checkbox("Check to register files")
+
+    databases_community = st.selectbox(
+        label="Select the community where you want to find your databases on ",
+        options=sorted([f"{k}" for k, v in communities.items()]),
+        index=None
+    )
+
+    if not databases_community:
         st.warning("Please specify.") & st.stop()
 
     if st.button("Submit"):
         st.session_state.submitted = True
-        st.session_state.option = option
+        st.session_state.buckets_community = buckets_community
+        st.session_state.databases_community = databases_community
+        st.session_state.do_files = do_files
+
         st.rerun()
 
 
+
 #show progress
-def show_progress():
-    progress = 20
+def show_progress(runId):
+    progress = 0
+
+    st.caption('Updated')
 
     bar = st.progress(progress)
     
-    while progress != 100:
-        files = list(filter(lambda x: 'beam' not in x.lower(), glob.glob(f'./runs/*.json.step.*')))
+    while progress < 100:
+        files = list(filter(lambda x: 'beam' not in x.lower(), glob.glob(f'./runs/{runId}.json.step.*')))
         
-        progress = len(files)*10 +20
+        progress = len(files)*9 +1
 
-        bar.progress(progress, text=f'{progress//10} of 10')
+        bar.progress(progress, text=f'{len(files)} of 12')
 
         time.sleep(1)
 
@@ -1312,19 +1156,326 @@ def show_progress():
     time.sleep(1)
 
 
+def do_finding(importService, config, entries, x):
+    logging.getLogger().debug("do finding")
 
-#do stuff
-def do_stuff(config, data_scan_resources_ready_df):
+    # data category
+    if x['Category'] not in entries[0]:
+        entries[0][x['Category']] = {
+            "entry": importService.get_asset("Privacy and Risk community", "Data categories", "Data Category", x['Category'], x['Category'])
+        }
+
+    # data concept
+    if x['Classifier'] not in entries[1]:
+        entries[1][x['Classifier']] = {
+            "entry": importService.get_asset("Data Architects community", "Business Data Models", "Data Concept", x['Classifier'], x['Classifier']),
+            "relations": [],
+            "attributes": []
+        }
+
+    if x['Category'] not in entries[1][x['Classifier']]['relations']:
+        entries[1][x['Classifier']]['relations'].append(x['Category'])
+        importService.add_relations(entries[1][x['Classifier']]['entry'], "c0e00000-0000-0000-0000-000000007316", "SOURCE", "Data categories", "Privacy and Risk community", x['Category'])
+
+    if x['Severity'] not in entries[1][x['Classifier']]['attributes']:
+        entries[1][x['Classifier']]['attributes'].append(x['Severity'])
+        importService.add_attributes(entries[1][x['Classifier']]['entry'], 'Severity', x['Severity'], 'string')
+
+    # domain
+    if x['_subscriptionExternalId'] not in entries[2]:
+        entries[2][x['_subscriptionExternalId']] = {
+            "entry": importService.get_domain(config['community_to_query'], "Technology Asset Domain", x['_subscriptionExternalId']),
+        }
+
+    # system
+    if x['_subscriptionExternalId'] not in entries[3]:
+        entries[3][x['_subscriptionExternalId']] = {
+            "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "System", x['_subscriptionExternalId'], x['_subscriptionExternalId']),
+            "attributes": []
+
+        }
+
+    if x['_cloudPlatform'] not in entries[3][x['_subscriptionExternalId']]['attributes']:
+        entries[3][x['_subscriptionExternalId']]['attributes'].append(x['_cloudPlatform'])
+        importService.add_attributes(entries[3][x['_subscriptionExternalId']]['entry'], 'Platform', x['_cloudPlatform'], 'string')
+
+    if x['_subscriptionExternalId'] not in entries[3][x['_subscriptionExternalId']]['attributes']:
+        entries[3][x['_subscriptionExternalId']]['attributes'].append(x['_subscriptionExternalId'])
+        importService.add_attributes(entries[3][x['_subscriptionExternalId']]['entry'], 'Account Name', x['_subscriptionExternalId'], 'string')
+
+
+    # if buckets
+    if x['type'] == 'BUCKET':        
+        # file system
+        if x['_externalId'] not in entries[4]:
+            entries[4][x['_externalId']] = {
+                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "S3 File System", x['_externalId'], x['_externalId']),
+                "relations": [],
+                "attributes": []
+            }
+
+        if x['_subscriptionExternalId'] not in entries[4][x['_externalId']]['relations']:
+            entries[4][x['_externalId']]['relations'].append(x['_subscriptionExternalId'])
+            importService.add_relations(entries[4][x['_externalId']]['entry'], "00000000-0000-0000-0000-000000007054", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], x['_subscriptionExternalId'])
+
+        if x['_region'] not in entries[4][x['_externalId']]['attributes']:
+            entries[4][x['_externalId']]['attributes'].append(x['_region'])
+            importService.add_attributes(entries[4][x['_externalId']]['entry'], 'Region', x['_region'], 'string')
+
+        if x['_creationDate'] not in entries[4][x['_externalId']]['attributes']:
+            entries[4][x['_externalId']]['attributes'].append(x['_creationDate'])
+            importService.add_attributes(entries[4][x['_externalId']]['entry'], 'Created At', x['_creationDate'], 'string')
+
+        # storage container
+        if x['_externalId'] not in entries[5]:
+            entries[5][x['_externalId']] = {
+                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "S3 Bucket", f"s3://{x['_externalId']}", f"s3://{x['_externalId']}"),
+                "relations": [],
+                "attributes": []
+            }
+
+        if x['_externalId'] not in entries[5][x['_externalId']]['relations']:
+            entries[5][x['_externalId']]['relations'].append(x['_externalId'])
+            importService.add_relations(entries[5][x['_externalId']]['entry'], "00000000-0000-0000-0001-002600000000", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], x['_externalId'])
+
+        if x['Category'] not in entries[5][x['_externalId']]['relations']:
+            entries[5][x['_externalId']]['relations'].append(x['Category'])
+            importService.add_relations(entries[5][x['_externalId']]['entry'], "01930192-86fb-77b0-8baf-30a80dccb864", "TARGET", "Data categories", "Privacy and Risk community", x['Category'])
+
+        if x['Classifier'] not in entries[5][x['_externalId']]['relations']:
+            entries[5][x['_externalId']]['relations'].append(x['Classifier'])
+            importService.add_relations(entries[5][x['_externalId']]['entry'], "01930192-f332-70fc-8572-9f7283c4cfd4", "TARGET",  "Business Data Models", "Data Architects community", x['Classifier'])
+
+        if x['_region'] not in entries[5][x['_externalId']]['attributes']:
+            entries[5][x['_externalId']]['attributes'].append(x['_region'])
+            importService.add_attributes(entries[5][x['_externalId']]['entry'], 'Region', x['_region'], 'string')
+
+        if x['_creationDate'] not in entries[5][x['_externalId']]['attributes']:
+            entries[5][x['_externalId']]['attributes'].append(x['_creationDate'])
+            importService.add_attributes(entries[5][x['_externalId']]['entry'], 'Created At', x['_creationDate'], 'string')
+
+        # directory
+        if x['_externalId'] not in entries[6]:
+            entries[6][x['_externalId']] = {
+                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "Directory", f"s3://{x['_externalId']}/", "/"),
+                "relations": [],
+                "attributes": []
+            }
+
+        if x['_externalId'] not in entries[6][x['_externalId']]['relations']:
+            entries[6][x['_externalId']]['relations'].append(x['_externalId'])
+            importService.add_relations(entries[6][x['_externalId']]['entry'], "00000000-0000-0000-0001-002600000001", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], f"s3://{x['_externalId']}")
+
+        if x['Category'] not in entries[6][x['_externalId']]['relations']:
+            entries[6][x['_externalId']]['relations'].append(x['Category'])
+            importService.add_relations(entries[6][x['_externalId']]['entry'], "01930192-86fb-77b0-8baf-30a80dccb864", "TARGET", "Data categories", "Privacy and Risk community", x['Category'])
+
+        if x['Classifier'] not in entries[6][x['_externalId']]['relations']:
+            entries[6][x['_externalId']]['relations'].append(x['Classifier'])
+            importService.add_relations(entries[6][x['_externalId']]['entry'], "01930192-f332-70fc-8572-9f7283c4cfd4", "TARGET",  "Business Data Models", "Data Architects community", x['Classifier'])
+
+        if x['_region'] not in entries[6][x['_externalId']]['attributes']:
+            entries[6][x['_externalId']]['attributes'].append(x['_region'])
+            importService.add_attributes(entries[6][x['_externalId']]['entry'], 'Region', x['_region'], 'string')
+
+        if x['_creationDate'] not in entries[6][x['_externalId']]['attributes']:
+            entries[6][x['_externalId']]['attributes'].append(x['_creationDate'])
+            importService.add_attributes(entries[6][x['_externalId']]['entry'], 'Created At', x['_creationDate'], 'string')
+
+        # measure
+        entries[8][f"{x['_externalId']}:{x['Classifier']}:Unique Matches"] = {
+            "entry": importService.get_asset("Governance council", "New Data Findings Metrics", "Measure", f"{x['_externalId']}:{x['Classifier']}:Unique Matches", f"{x['Classifier']} Unique Matches")
+        }
+
+        importService.add_attributes(entries[8][f"{x['_externalId']}:{x['Classifier']}:Unique Matches"]['entry'], 'Count', x['Unique Matches'], 'string')
+
+        importService.add_relations(entries[8][f"{x['_externalId']}:{x['Classifier']}:Unique Matches"]['entry'], "01930b23-1a84-7d44-b817-275206442bf6", "TARGET",  "Business Data Models", "Data Architects community",  x['Classifier'])
+        
+        importService.add_relations(entries[8][f"{x['_externalId']}:{x['Classifier']}:Unique Matches"]['entry'], "01930b24-2617-722b-9502-8c30d4b3818c", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], f"s3://{x['_externalId']}/")
+
+        entries[8][f"{x['_externalId']}:{x['Classifier']}:Total Matches"] = {
+            "entry": importService.get_asset("Governance council", "New Data Findings Metrics", "Measure", f"{x['_externalId']}:{x['Classifier']}:Total Matches", f"{x['Classifier']} Total Matches")
+        }
+
+        importService.add_attributes(entries[8][f"{x['_externalId']}:{x['Classifier']}:Total Matches"]['entry'], 'Count', x['Total Matches'], 'string')
+
+        importService.add_relations(entries[8][f"{x['_externalId']}:{x['Classifier']}:Total Matches"]['entry'], "01930b23-1a84-7d44-b817-275206442bf6", "TARGET",  "Business Data Models", "Data Architects community",  x['Classifier'])
+        
+        importService.add_relations(entries[8][f"{x['_externalId']}:{x['Classifier']}:Total Matches"]['entry'], "01930b24-2617-722b-9502-8c30d4b3818c", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], f"s3://{x['_externalId']}/")
+
+        # dimension
+        if x['Classifier'] not in entries[9]:
+            entries[9][x['Classifier']] = {
+                "entry": importService.get_asset("Governance council", "Data Findings Dimensions", "Data Findings Dimension", x['Classifier'], x['Classifier'])
+            }
+
+        # metric    
+        entries[10][f"s3://{x['_externalId']}/:{x['Classifier']}:Unique Matches:Rule"] = {
+            "entry": importService.get_asset("Governance council", "Data Findings Rules", "Data Findings Rule",f"s3://{x['_externalId']}/:{x['Classifier']}:Unique Matches", f"{x['Classifier']} Unique Matches")
+        }
+
+        importService.add_relations(entries[10][f"s3://{x['_externalId']}/:{x['Classifier']}:Unique Matches:Rule"]['entry'], "00000000-0000-0000-0000-000000007018", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], f"s3://{x['_externalId']}/")
+        
+
+        entries[10][f"s3://{x['_externalId']}/:{x['Classifier']}:Total Matches:Rule"] = {
+            "entry": importService.get_asset("Governance council", "Data Findings Rules", "Data Findings Rule", f"s3://{x['_externalId']}/:{x['Classifier']}:Total Matches", f"{x['Classifier']} Total Matches")
+        }
+
+        importService.add_relations(entries[10][f"s3://{x['_externalId']}/:{x['Classifier']}:Total Matches:Rule"]['entry'], "00000000-0000-0000-0000-000000007018", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], f"s3://{x['_externalId']}/")
+
+        entries[10][f"s3://{x['_externalId']}/:{x['Classifier']}:Unique Matches:Metric"] = {
+            "entry": importService.get_asset("Governance council", "Data Findings Metrics", "Data Findings Metric", f"s3://{x['_externalId']}/:{x['Classifier']}:Unique Matches", f"{x['Classifier']} Unique Matches")
+        }
+
+        importService.add_attributes(entries[10][f"s3://{x['_externalId']}/:{x['Classifier']}:Unique Matches:Metric"]['entry'], 'Passing Fraction', x['Unique Matches'], 'string')
+
+        importService.add_relations(entries[10][f"s3://{x['_externalId']}/:{x['Classifier']}:Unique Matches:Metric"]['entry'], "01931f87-3dca-7b65-a03c-dce0146ade76", "TARGET",  "Data Findings Dimensions", "Governance council", x['Classifier'])
+        
+        importService.add_relations(entries[10][f"s3://{x['_externalId']}/:{x['Classifier']}:Unique Matches:Metric"]['entry'], "01931feb-4b9a-7b6b-a456-e1a2759ceca4", "SOURCE",  "Data Findings Rules", "Governance council", f"s3://{x['_externalId']}/:{x['Classifier']}:Unique Matches")
+        
+        entries[10][f"s3://{x['_externalId']}/:{x['Classifier']}:Total Matches:Metric"] = {
+            "entry": importService.get_asset("Governance council", "Data Findings Metrics", "Data Findings Metric", f"s3://{x['_externalId']}/:{x['Classifier']}:Total Matches", f"{x['Classifier']} Total Matches")
+        }
+
+        importService.add_attributes(entries[10][f"s3://{x['_externalId']}/:{x['Classifier']}:Total Matches:Metric"]['entry'], 'Passing Fraction', x['Total Matches'], 'string')
+
+        importService.add_relations(entries[10][f"s3://{x['_externalId']}/:{x['Classifier']}:Total Matches:Metric"]['entry'], "01931f87-3dca-7b65-a03c-dce0146ade76", "TARGET",  "Data Findings Dimensions", "Governance council", x['Classifier'])
+
+        importService.add_relations(entries[10][f"s3://{x['_externalId']}/:{x['Classifier']}:Total Matches:Metric"]['entry'], "01931feb-4b9a-7b6b-a456-e1a2759ceca4", "SOURCE",  "Data Findings Rules", "Governance council", f"s3://{x['_externalId']}/:{x['Classifier']}:Total Matches")
+
+
+    # if database
+    if x['type'] in ('DATABASE', 'DB_SERVER'):
+        if x['_externalId'] not in entries[7]:
+            entries[7][x['_externalId']] = {
+                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "Database", x['name'], x['name']),
+                "relations": [],
+                "attributes": []
+            }
+
+        if x['_subscriptionExternalId'] not in entries[7][x['_externalId']]['relations']:
+            entries[7][x['_externalId']]['relations'].append(x['_subscriptionExternalId'])
+            importService.add_relations(entries[7][x['_externalId']]['entry'], "00000000-0000-0000-0000-000000007054", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], x['_subscriptionExternalId'])
+
+        if x['Category'] not in entries[7][x['_externalId']]['relations']:
+            entries[7][x['_externalId']]['relations'].append(x['Category'])
+            importService.add_relations(entries[7][x['_externalId']]['entry'], "01944282-004e-73ea-a9d6-5a418e9738a7", "TARGET", "Data categories", "Privacy and Risk community", x['Category'])
+
+        if x['Classifier'] not in entries[7][x['_externalId']]['relations']:
+            entries[7][x['_externalId']]['relations'].append(x['Classifier'])
+            importService.add_relations(entries[7][x['_externalId']]['entry'], "01944282-9d1a-7185-97a6-3b2aef01c556", "TARGET",  "Business Data Models", "Data Architects community", x['Classifier'])
+
+        if x['_region'] not in entries[7][x['_externalId']]['attributes']:
+            entries[7][x['_externalId']]['attributes'].append(x['_region'])
+            importService.add_attributes(entries[7][x['_externalId']]['entry'], 'Region', x['_region'], 'string')
+
+        if x['_creationDate'] not in entries[7][x['_externalId']]['attributes']:
+            entries[7][x['_externalId']]['attributes'].append(x['_creationDate'])
+            importService.add_attributes(entries[7][x['_externalId']]['entry'], 'Created At', x['_creationDate'], 'string')
+
+        if x['_externalId'] not in entries[7][x['_externalId']]['attributes']:
+            entries[7][x['_externalId']]['attributes'].append(x['_externalId'])
+            importService.add_attributes(entries[7][x['_externalId']]['entry'], 'Principal Identifier', x['_externalId'], 'string')
+
+        # measure
+        entries[8][f"{x['name']}:{x['Classifier']}:Unique Matches"] = {
+            "entry": importService.get_asset("Governance council", "New Data Findings Metrics", "Measure", f"{x['name']}:{x['Classifier']}:Unique Matches", f"{x['Classifier']} Unique Matches")
+        }
+
+        importService.add_attributes(entries[8][f"{x['name']}:{x['Classifier']}:Unique Matches"]['entry'], 'Count', x['Unique Matches'], 'string')
+
+        importService.add_relations(entries[8][f"{x['name']}:{x['Classifier']}:Unique Matches"]['entry'], "01930b23-1a84-7d44-b817-275206442bf6", "TARGET",  "Business Data Models", "Data Architects community",  x['Classifier'])
+        
+        importService.add_relations(entries[8][f"{x['name']}:{x['Classifier']}:Unique Matches"]['entry'], "01944259-fa74-7122-902a-f019e671cc3a", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], x['name'])
+
+        entries[8][f"{x['name']}:{x['Classifier']}:Total Matches"] = {
+            "entry": importService.get_asset("Governance council", "New Data Findings Metrics", "Measure", f"{x['name']}:{x['Classifier']}:Total Matches", f"{x['Classifier']} Total Matches")
+        }
+
+        importService.add_attributes(entries[8][f"{x['name']}:{x['Classifier']}:Total Matches"]['entry'], 'Count', x['Total Matches'], 'string')
+
+        importService.add_relations(entries[8][f"{x['name']}:{x['Classifier']}:Total Matches"]['entry'], "01930b23-1a84-7d44-b817-275206442bf6", "TARGET",  "Business Data Models", "Data Architects community",  x['Classifier'])
+        
+        importService.add_relations(entries[8][f"{x['name']}:{x['Classifier']}:Total Matches"]['entry'], "01944259-fa74-7122-902a-f019e671cc3a", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], x['name'])
+
+        # dimension
+        if x['Classifier'] not in entries[9]:
+            entries[9][x['Classifier']] = {
+                "entry": importService.get_asset("Governance council", "Data Findings Dimensions", "Data Findings Dimension", x['Classifier'], x['Classifier'])
+            }
+
+        # metric    
+        entries[10][f"{x['name']}:{x['Classifier']}:Unique Matches:Rule"] = {
+            "entry": importService.get_asset("Governance council", "Data Findings Rules", "Data Findings Rule",f"{x['name']}:{x['Classifier']}:Unique Matches", f"{x['Classifier']} Unique Matches")
+        }
+
+        importService.add_relations(entries[10][f"{x['name']}:{x['Classifier']}:Unique Matches:Rule"]['entry'], "00000000-0000-0000-0000-000000007018", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], f"{x['name']}")
+        
+
+        entries[10][f"{x['name']}:{x['Classifier']}:Total Matches:Rule"] = {
+            "entry": importService.get_asset("Governance council", "Data Findings Rules", "Data Findings Rule", f"{x['name']}:{x['Classifier']}:Total Matches", f"{x['Classifier']} Total Matches")
+        }
+
+        importService.add_relations(entries[10][f"{x['name']}:{x['Classifier']}:Total Matches:Rule"]['entry'], "00000000-0000-0000-0000-000000007018", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], f"{x['name']}")
+
+        entries[10][f"{x['name']}:{x['Classifier']}:Unique Matches:Metric"] = {
+            "entry": importService.get_asset("Governance council", "Data Findings Metrics", "Data Findings Metric", f"{x['name']}:{x['Classifier']}:Unique Matches", f"{x['Classifier']} Unique Matches")
+        }
+
+        importService.add_attributes(entries[10][f"{x['name']}:{x['Classifier']}:Unique Matches:Metric"]['entry'], 'Passing Fraction', x['Unique Matches'], 'string')
+
+        importService.add_relations(entries[10][f"{x['name']}:{x['Classifier']}:Unique Matches:Metric"]['entry'], "01931f87-3dca-7b65-a03c-dce0146ade76", "TARGET",  "Data Findings Dimensions", "Governance council", x['Classifier'])
+        
+        importService.add_relations(entries[10][f"{x['name']}:{x['Classifier']}:Unique Matches:Metric"]['entry'], "01931feb-4b9a-7b6b-a456-e1a2759ceca4", "SOURCE",  "Data Findings Rules", "Governance council", f"{x['name']}:{x['Classifier']}:Unique Matches")
+        
+        entries[10][f"{x['name']}:{x['Classifier']}:Total Matches:Metric"] = {
+            "entry": importService.get_asset("Governance council", "Data Findings Metrics", "Data Findings Metric", f"{x['name']}:{x['Classifier']}:Total Matches", f"{x['Classifier']} Total Matches")
+        }
+
+        importService.add_attributes(entries[10][f"{x['name']}:{x['Classifier']}:Total Matches:Metric"]['entry'], 'Passing Fraction', x['Total Matches'], 'string')
+
+        importService.add_relations(entries[10][f"{x['name']}:{x['Classifier']}:Total Matches:Metric"]['entry'], "01931f87-3dca-7b65-a03c-dce0146ade76", "TARGET",  "Data Findings Dimensions", "Governance council", x['Classifier'])
+
+        importService.add_relations(entries[10][f"{x['name']}:{x['Classifier']}:Total Matches:Metric"]['entry'], "01931feb-4b9a-7b6b-a456-e1a2759ceca4", "SOURCE",  "Data Findings Rules", "Governance council", f"{x['name']}:{x['Classifier']}:Total Matches")
+
+
+def do_finding_example(importService, config, entries, x):
+    logging.getLogger().debug("do finding example")
+    if x['type'] == 'BUCKET':        
+        file = f"s3://{x['name']}/{x['path']}"
+
+        entries[11][file] = {
+            "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "File", file, x['path']),
+            "relations": []
+        }
+
+        entries[11][file]['relations'].append(f"s3://{x['name']}/")
+        importService.add_relations(entries[11][file]['entry'], "00000000-0000-0000-0000-000000007060", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], f"s3://{x['name']}/")
+
+        entries[11][file]['relations'].append(x['Category'])
+        importService.add_relations(entries[11][file]['entry'], "01943678-0ab4-7015-ba1f-0f9a168a6ade", "TARGET", "Data categories", "Privacy and Risk community", x['Category'])
+
+        entries[11][file]['relations'].append(x['Classifier'])
+        importService.add_relations(entries[11][file]['entry'], "01943678-ebf1-7cd5-bc9c-c78b2d115f3c", "TARGET",  "Business Data Models", "Data Architects community", x['Classifier'])
+
+
+    
+def do_all_findings(config, data_scan_resources_ready_df, data_scan_resources_exploded_df):
+    logging.getLogger().debug("do all findings")
+
+    runId = time.strftime("%Y%m%d")
+
+    shutil.rmtree(f'./runs/{runId}', ignore_errors=True)
+
+    _= [os.remove(f) for f in glob.glob(f'./runs/{runId}.json.*')]
+    
     ctx = get_script_run_ctx()
 
-    t = threading.Thread(target=show_progress,daemon=True)
+    t = threading.Thread(target=show_progress, args=[runId], daemon=True)
 
     add_script_run_ctx(t, ctx)
 
     t.start()
-
-
-    logging.getLogger().debug("do stuff")
 
     collibra = get_collibra(get_config())
     
@@ -1343,138 +1494,48 @@ def do_stuff(config, data_scan_resources_ready_df):
         st.stop()
 
 
-    option = st.session_state.option
-
-    communityToQuery = (communities.get(option) if option else st.warning("Please specify.") & st.stop())
-
-    #buckets only
-    data_scan_resources_ready_df = data_scan_resources_ready_df.query("type == 'BUCKET'")
-
-    importService = ImportService(time.strftime("%Y%m%d"), 1, 150000)
-
-    #categories
-    categoryEntries = []
-
-    _= [categoryEntries.append(importService.get_asset("Privacy and Risk community", "Data categories", "Data Category", e, e)) for e in data_scan_resources_ready_df['Category'].drop_duplicates()]
-
-    #classifiers
-    entries = {}
-
-    _= [do_classifier(e[0], e[1], e[2], entries, importService) for e in data_scan_resources_ready_df[['Classifier', 'Category', 'Severity']].drop_duplicates().itertuples(index=False)]
-
-    classifierEntries = []
-
-    _= [classifierEntries.append(v['entry']) for k,v in entries.items()]
+    # placeholder = st.empty()
     
-    importService.save(categoryEntries+classifierEntries, "./runs", "classifier", 0, True)
+    # with placeholder.container():   
+    #     with open("Animation-1736352676693.json", "r") as f:
+    #         st_lottie(json.load(f), height=200, width=300)
+        
 
-    #domains
-    domainEntries = []
+    community = st.session_state.buckets_community
 
-    domains = data_scan_resources_ready_df['_subscriptionExternalId'].drop_duplicates()
+    config['community_to_query'] = community # (communities.get(community) if community else st.warning("Please specify.") & st.stop())
 
-    _= [domainEntries.append(importService.get_domain(communityToQuery['name'], "Technology Asset Domain", str(e))) for e in domains]
+    importService = ImportService(runId, 1, 150000)
 
-    #systems 
-    entries = {}
+    entries = [{} for element in range(12)]
 
-    _= [do_system(str(e[0]), e[1], str(e[2]), str(e[3]), communityToQuery['name'], entries, importService) for e in data_scan_resources_ready_df[['_subscriptionExternalId', '_cloudPlatform', '_subscriptionExternalId', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
+    data_scan_resources_ready_df.apply(lambda x: do_finding(importService, config, entries, x), axis=1)
 
-    systemEntries = []
+    if 'do_files' in st.session_state and st.session_state.do_files:
+        data_scan_resources_exploded_df.apply(lambda x: do_finding_example(importService, config, entries, x), axis=1)
 
-    _= [systemEntries.append(v['entry']) for k,v in entries.items()]
+
+    # each in it step file
+    allEntries = [[] for element in range(12)]
+
+    _= [allEntries[i].append(v['entry']) for i,e in enumerate(entries) for k,v in e.items()]
+
+    _= [importService.save(e, "./runs", runId, i, True) for i,e in enumerate(allEntries)]
+
     
-    importService.save(systemEntries, "./runs", "system", 1, True)
+    # # all in one step file
+    # allEntries = []
 
-    #file storages
-    entries = {}
-
-    _= [do_filestorage(e[0], e[1], e[2], str(e[3]), str(e[4]), communityToQuery['name'], entries, importService) for e in data_scan_resources_ready_df[['_externalId', '_region', '_creationDate', '_subscriptionExternalId', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
-
-    fileStorageEntries = []
-
-    _= [fileStorageEntries.append(v['entry']) for k,v in entries.items()]
+    # _= [allEntries.append(v['entry']) for i,e in enumerate(entries) for k,v in e.items()]
     
-    importService.save(fileStorageEntries, "./runs", "fileStorage", 2, True)
+    # importService.save(allEntries, "./runs", runId, 0, True)
 
-    #storage containers
-    entries = {}
+    HarvesterService().run(config, "./runs") 
 
-    _= [do_storagecontainer(f"s3://{e[0]}", e[1], e[2], str(e[3]), e[4], e[5], str(e[6]), communityToQuery['name'], entries, importService) for e in data_scan_resources_ready_df[['_externalId', '_region', '_creationDate', '_externalId', 'Category', 'Classifier', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
-
-    storageContainerEntries = []
-
-    _= [storageContainerEntries.append(v['entry']) for k,v in entries.items()]
-
-    importService.save(storageContainerEntries, "./runs", "storageContainer", 3, True)
-    
-    #directories
-    entries = {}
-
-    _= [do_directory(f"s3://{e[3]}/", e[1], e[2], f"s3://{e[3]}", e[4], e[5], str(e[6]), communityToQuery['name'], entries, importService) for e in data_scan_resources_ready_df[['_externalId', '_region', '_creationDate', '_externalId', 'Category', 'Classifier', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
-
-    directoryEntries = []
-
-    _= [directoryEntries.append(v['entry']) for k,v in entries.items()]
-
-    importService.save(directoryEntries, "./runs", "directory", 4, True)
-
-    #measures
-    entries = {}
-
-    _= [do_measure(f"s3://{e[0]}/", e[1], e[2], e[3], str(e[4]), communityToQuery['name'], entries, importService) for e in data_scan_resources_ready_df[['_externalId', 'Classifier', 'Unique Matches', 'Total Matches', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
-
-    measureEntries = []
-
-    _= [measureEntries.append(v['entry']) for k,v in entries.items()]
-
-    importService.save(measureEntries, "./runs", "measure", 5, True)
-
-    #dimensions
-    entries = {}
-
-    _= [do_dimension(e[0], entries, importService) for e in data_scan_resources_ready_df[['Classifier']].drop_duplicates().itertuples(index=False)]
-
-    dimensionEntries = []
-
-    _= [dimensionEntries.append(v['entry']) for k,v in entries.items()]
-    
-    importService.save(dimensionEntries, "./runs", "dimension", 6, True)
-
-    #metrics
-    entries = {}
-
-    _= [do_metric(f"s3://{e[0]}/", e[1], e[2], e[3], str(e[4]), communityToQuery['name'], entries, importService) for e in data_scan_resources_ready_df[['_externalId', 'Classifier', 'Unique Matches', 'Total Matches', '_subscriptionExternalId']].drop_duplicates().itertuples(index=False)]
-
-    metricEntries = []
-
-    _= [metricEntries.append(v['entry']) for k,v in entries.items()]
-    
-    importService.save(metricEntries, "./runs", "metric", 7, True)
-
-    # TODO: data finding rule and metric: rule connected with directory and metric, metric connected with dimension and with passing fraction
-
-    # TODO: add finding examples
-
-    HarvesterService().run(config, "./runs")
+    # placeholder.empty()
 
     t.join()
 
-    with st.expander("See results"):
-        file = sorted(glob.glob(f'./runs/*.results'))[-1] 
-
-        with open(file, "r") as f:
-            results = json.load(f)
-
-            parts = [(p['step_number'], p['file_name'], p['part_number'], p['job']['id'], p['job']['result']) for k,v in results['steps'].items() for p in v]
-
-            st.dataframe(pd.DataFrame(parts, columns=['Step Number','File Name','Part Number','Job Id','Job Result']))
-
-            st.markdown("[take a closer look](https://print.collibra.com/profile/9693d5ce-9fb4-4e97-b46e-7218526eda14/activities)")
-            
-
-
-    st.stop()
 
 
 #main   
@@ -1491,19 +1552,10 @@ def main():
 
 if __name__ == '__main__':
     st.set_page_config(layout="wide")
-    
+
     main()    
 
-    # session = st.connection("snowflake").session()
-
-    # data_scan_resources_exploded_df = session.table("DATA_SCAN_RESOURCES_EXPLODED").to_pandas()
-
-    # st.dataframe(data_scan_resources_exploded_df)
     
-
-    
-    
-
 
 #get collibra
 #@st.cache_resource

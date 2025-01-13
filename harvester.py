@@ -12,15 +12,12 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.coders import Coder
 
+import apache_beam.runners.interactive.interactive_beam as ib
+from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
+
 from requests.auth import HTTPBasicAuth
 
 import requests
-
-# from collibra_importer.api import import_api
-
-# from collibra_core.api_client import Configuration as Collibra_Core_Api_Client_Config
-# from collibra_core.api_client import ApiClient as Collibra_Core_Api_Client
-# from collibra_core.api import jobs_api
 
 
 #do import
@@ -59,7 +56,7 @@ class DoImport(beam.DoFn):
             state = response.json().get('state')
             
             while state != "COMPLETED" and state != "CANCELED" and state != "ERROR":
-                time.sleep(5)
+                time.sleep(1)
 
                 response = collibra.get("session").get(f"{collibra.get('endpoint')}/jobs/{id}")
                 
@@ -97,11 +94,11 @@ class JsonCoder(Coder):
 class HarvesterService():
     #do pipeline
     def doPipeline(self, config=None, file=None, data=None, step=None):
-        logging.getLogger().info(f"doPipeline: file: {file} step: {step}")
+        logging.getLogger().info(f"doPipeline: file: {file} step: {step} data: {data['steps'][step]}")
 
         #set options
         options = PipelineOptions(['--direct_num_workers', '8', '--runner', 'DirectRunner', '--direct_running_mode', 'multi_threading'])
-
+        
         options.view_as(SetupOptions).save_main_session = True
 
         #build and run pipeline
@@ -188,4 +185,3 @@ class HarvesterService():
         files = glob.glob(f'{input}/*.json')
 
         [self.doRequest(config, file) for file in files] 
-

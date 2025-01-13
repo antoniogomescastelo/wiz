@@ -1,5 +1,7 @@
 import os
 import json
+import time
+import logging
 from datetime import datetime
 
 from models import Community, Domain, Identifier, Type, Entry, Step
@@ -133,6 +135,66 @@ class ImportService:
 
         with open(name, 'w') as file:
             json.dump(self, file, default=lambda o: o.__dict__)
+
+
+    def harvest(self, collibra, config, input, filename):
+        file = (f'{input}/{filename}.json')
+
+        try:
+            os.rename(file, f"{file}.lock")
+        
+            with open(f"{file}.lock", "r") as f:
+                data = json.load(f)
+
+            #files = [f"{f['resource_location']}/{f['step_number']}.{f['file_name']}.{f['part_number']}.json" for k,v in data['steps'].items() for f in v]
+
+            #results = [self.do_import(collibra, config, f) for f in files]
+
+            results = [self.do_import(collibra, config, p) for k,v in data['steps'].items() for p in v]
+
+            with open(f'{file}.results', "a+") as f:
+                f.write(json.dumps(results))
+
+            os.rename(f"{file}.lock", f"{file}.done")
+
+        except Exception as e:
+            os.rename(f"{file}.lock", f"{file}")
+
+            return
+
+        return results
+    
+
+    def do_import(self, collibra, config, part):
+        logging.getLogger().setLevel(logging.DEBUG)
+
+        logging.getLogger().debug(f"do import part: {part}")
+
+        file = f"{part['resource_location']}/{part['step_number']}.{part['file_name']}.{part['part_number']}.json"
+
+        payload = {'fileName': file}
+
+        files=[('file',(file, open(file,'rb'),'application/json'))]
+
+        response = collibra.get("session").post(f"{collibra.get('endpoint')}/import/json-job", data=payload, files=files)
+
+        id = response.json().get('id')
+
+        state = response.json().get('state')
+        
+        while state != "COMPLETED" and state != "CANCELED" and state != "ERROR":
+            time.sleep(1)
+
+            response = collibra.get("session").get(f"{collibra.get('endpoint')}/jobs/{id}")
+            
+            state = response.json()['state']
+
+        logging.getLogger().debug(f"do import file: {file} result: {response.json()['result']}")
+
+        part["job"] = {"id": id, "result": response.json()['result']}
+
+        return part
+          
 
     def to_json(self):
         return json.dumps(self, default=lambda o: o.__dict__, skipkeys=True)
