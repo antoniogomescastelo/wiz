@@ -1104,34 +1104,23 @@ def get_collibra(config):
 #show dialog
 @st.dialog("Choose")
 def show_dialog(communities):
-    buckets_community = st.selectbox(
-        label="Select the community where you want to find your buckets on ",
+    resources_community = st.selectbox(
+        label="Select the community where you want to find your resources on ",
         options=sorted([f"{k}" for k, v in communities.items()]),
         index=None
     )
 
-    if not buckets_community:
+    if not resources_community:
         st.warning("Please specify.") & st.stop()
 
-    do_files = st.checkbox("Check to register files")
-
-    databases_community = st.selectbox(
-        label="Select the community where you want to find your databases on ",
-        options=sorted([f"{k}" for k, v in communities.items()]),
-        index=None
-    )
-
-    if not databases_community:
-        st.warning("Please specify.") & st.stop()
+    do_finding_examples = st.checkbox("Check to register your finding examples")
 
     if st.button("Submit"):
         st.session_state.submitted = True
-        st.session_state.buckets_community = buckets_community
-        st.session_state.databases_community = databases_community
-        st.session_state.do_files = do_files
+        st.session_state.resources_community = resources_community
+        st.session_state.do_finding_examples = do_finding_examples
 
         st.rerun()
-
 
 
 #show progress
@@ -1145,9 +1134,9 @@ def show_progress(runId):
     while progress < 100:
         files = list(filter(lambda x: 'beam' not in x.lower(), glob.glob(f'./runs/{runId}.json.step.*')))
         
-        progress = len(files)*9 +1
+        progress = len(files)*7 +1
 
-        bar.progress(progress, text=f'{len(files)} of 12')
+        bar.progress(progress, text=f'{len(files)} of 15')
 
         time.sleep(1)
 
@@ -1348,7 +1337,7 @@ def do_finding(importService, config, entries, x):
     if x['type'] in ('DATABASE', 'DB_SERVER'):
         if x['_externalId'] not in entries[7]:
             entries[7][x['_externalId']] = {
-                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "Database", x['name'], x['name']),
+                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "System", x['name'], x['name']), #Database
                 "relations": [],
                 "attributes": []
             }
@@ -1359,11 +1348,11 @@ def do_finding(importService, config, entries, x):
 
         if x['Category'] not in entries[7][x['_externalId']]['relations']:
             entries[7][x['_externalId']]['relations'].append(x['Category'])
-            importService.add_relations(entries[7][x['_externalId']]['entry'], "01944282-004e-73ea-a9d6-5a418e9738a7", "TARGET", "Data categories", "Privacy and Risk community", x['Category'])
+            importService.add_relations(entries[7][x['_externalId']]['entry'], "019465e7-438a-7115-8158-68545ff8d12d", "TARGET", "Data categories", "Privacy and Risk community", x['Category']) #01944282-004e-73ea-a9d6-5a418e9738a7
 
         if x['Classifier'] not in entries[7][x['_externalId']]['relations']:
             entries[7][x['_externalId']]['relations'].append(x['Classifier'])
-            importService.add_relations(entries[7][x['_externalId']]['entry'], "01944282-9d1a-7185-97a6-3b2aef01c556", "TARGET",  "Business Data Models", "Data Architects community", x['Classifier'])
+            importService.add_relations(entries[7][x['_externalId']]['entry'], "019465e8-5d94-76a6-a34b-68a3f8d7c74c", "TARGET",  "Business Data Models", "Data Architects community", x['Classifier']) #01944282-9d1a-7185-97a6-3b2aef01c556
 
         if x['_region'] not in entries[7][x['_externalId']]['attributes']:
             entries[7][x['_externalId']]['attributes'].append(x['_region'])
@@ -1386,7 +1375,7 @@ def do_finding(importService, config, entries, x):
 
         importService.add_relations(entries[8][f"{x['name']}:{x['Classifier']}:Unique Matches"]['entry'], "01930b23-1a84-7d44-b817-275206442bf6", "TARGET",  "Business Data Models", "Data Architects community",  x['Classifier'])
         
-        importService.add_relations(entries[8][f"{x['name']}:{x['Classifier']}:Unique Matches"]['entry'], "01944259-fa74-7122-902a-f019e671cc3a", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], x['name'])
+        importService.add_relations(entries[8][f"{x['name']}:{x['Classifier']}:Unique Matches"]['entry'], "019465e9-0c5a-7293-863b-adad740124cc", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], x['name']) #01944259-fa74-7122-902a-f019e671cc3a
 
         entries[8][f"{x['name']}:{x['Classifier']}:Total Matches"] = {
             "entry": importService.get_asset("Governance council", "New Data Findings Metrics", "Measure", f"{x['name']}:{x['Classifier']}:Total Matches", f"{x['Classifier']} Total Matches")
@@ -1396,7 +1385,7 @@ def do_finding(importService, config, entries, x):
 
         importService.add_relations(entries[8][f"{x['name']}:{x['Classifier']}:Total Matches"]['entry'], "01930b23-1a84-7d44-b817-275206442bf6", "TARGET",  "Business Data Models", "Data Architects community",  x['Classifier'])
         
-        importService.add_relations(entries[8][f"{x['name']}:{x['Classifier']}:Total Matches"]['entry'], "01944259-fa74-7122-902a-f019e671cc3a", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], x['name'])
+        importService.add_relations(entries[8][f"{x['name']}:{x['Classifier']}:Total Matches"]['entry'], "019465e9-0c5a-7293-863b-adad740124cc", "SOURCE",  x['_subscriptionExternalId'], config['community_to_query'], x['name']) #01944259-fa74-7122-902a-f019e671cc3a
 
         # dimension
         if x['Classifier'] not in entries[9]:
@@ -1440,7 +1429,7 @@ def do_finding(importService, config, entries, x):
 
 
 def do_finding_example(importService, config, entries, x):
-    logging.getLogger().debug("do finding example")
+    # if bucket
     if x['type'] == 'BUCKET':        
         file = f"s3://{x['name']}/{x['path']}"
 
@@ -1449,14 +1438,56 @@ def do_finding_example(importService, config, entries, x):
             "relations": []
         }
 
-        entries[11][file]['relations'].append(f"s3://{x['name']}/")
         importService.add_relations(entries[11][file]['entry'], "00000000-0000-0000-0000-000000007060", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], f"s3://{x['name']}/")
 
-        entries[11][file]['relations'].append(x['Category'])
         importService.add_relations(entries[11][file]['entry'], "01943678-0ab4-7015-ba1f-0f9a168a6ade", "TARGET", "Data categories", "Privacy and Risk community", x['Category'])
 
-        entries[11][file]['relations'].append(x['Classifier'])
         importService.add_relations(entries[11][file]['entry'], "01943678-ebf1-7cd5-bc9c-c78b2d115f3c", "TARGET",  "Business Data Models", "Data Architects community", x['Classifier'])
+
+
+    # if database
+    if x['type'] in ('DATABASE', 'DB_SERVER'):
+        parts = x['path'].split('.')[::-1] 
+
+        parts = (parts + [parts[-1], parts[-1]])[:3]
+
+        #database
+        database = parts.pop()
+        if f"{x['name']}>{database}" not in entries[12]:
+            entries[12][f"{x['name']}>{database}"] = {
+                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "Database", f"{x['name']}>{database}", database),
+                "relations": []
+            }
+
+        if x['name'] not in entries[12][f"{x['name']}>{database}"]['relations']:
+            entries[12][f"{x['name']}>{database}"]['relations'].append(x['name'])
+            importService.add_relations(entries[12][f"{x['name']}>{database}"]['entry'], "00000000-0000-0000-0000-000000007054", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], x['name'])
+
+        # schema
+        schema = parts.pop()
+        if f"{x['name']}>{database}>{schema}" not in entries[13]:
+            entries[13][f"{x['name']}>{database}>{schema}"] = {
+                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "Schema", f"{x['name']}>{database}>{schema}", schema),
+                "relations": [],
+                "attributes": []
+            }
+
+        if  f"{x['name']}>{database}" not in entries[13][f"{x['name']}>{database}>{schema}"]['relations']:
+            entries[13][f"{x['name']}>{database}>{schema}"]['relations'].append(f"{x['name']}>{database}")
+            importService.add_relations(entries[13][f"{x['name']}>{database}>{schema}"]['entry'], "00000000-0000-0000-0000-000000007024", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], f"{x['name']}>{database}")
+
+        # table
+        table = parts.pop()
+        if f"{x['name']}>{database}>{schema}>{table}" not in entries[14]:
+            entries[14][f"{x['name']}>{database}>{schema}>{table}"] = {
+                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "Table", f"{x['name']}>{database}>{schema}>{table}", table),
+                "relations": [],
+                "attributes": []
+            }
+
+        if  f"{x['name']}>{database}>{schema}" not in entries[14][f"{x['name']}>{database}>{schema}>{table}"]['relations']:
+            entries[14][f"{x['name']}>{database}>{schema}>{table}"]['relations'].append(f"{x['name']}>{database}>{schema}")
+            importService.add_relations(entries[14][f"{x['name']}>{database}>{schema}>{table}"]['entry'], "00000000-0000-0000-0000-000000007043", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], f"{x['name']}>{database}>{schema}")
 
 
     
@@ -1501,22 +1532,22 @@ def do_all_findings(config, data_scan_resources_ready_df, data_scan_resources_ex
     #         st_lottie(json.load(f), height=200, width=300)
         
 
-    community = st.session_state.buckets_community
+    community = st.session_state.resources_community
 
     config['community_to_query'] = community # (communities.get(community) if community else st.warning("Please specify.") & st.stop())
 
     importService = ImportService(runId, 1, 150000)
 
-    entries = [{} for element in range(12)]
+    entries = [{} for element in range(15)]
 
     data_scan_resources_ready_df.apply(lambda x: do_finding(importService, config, entries, x), axis=1)
 
-    if 'do_files' in st.session_state and st.session_state.do_files:
+    if 'do_finding_examples' in st.session_state and st.session_state.do_finding_examples:
         data_scan_resources_exploded_df.apply(lambda x: do_finding_example(importService, config, entries, x), axis=1)
 
 
     # each in it step file
-    allEntries = [[] for element in range(12)]
+    allEntries = [[] for element in range(15)]
 
     _= [allEntries[i].append(v['entry']) for i,e in enumerate(entries) for k,v in e.items()]
 
@@ -1525,9 +1556,7 @@ def do_all_findings(config, data_scan_resources_ready_df, data_scan_resources_ex
     
     # # all in one step file
     # allEntries = []
-
     # _= [allEntries.append(v['entry']) for i,e in enumerate(entries) for k,v in e.items()]
-    
     # importService.save(allEntries, "./runs", runId, 0, True)
 
     HarvesterService().run(config, "./runs") 
@@ -1535,7 +1564,6 @@ def do_all_findings(config, data_scan_resources_ready_df, data_scan_resources_ex
     # placeholder.empty()
 
     t.join()
-
 
 
 #main   
