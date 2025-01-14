@@ -96,6 +96,7 @@ class HarvesterService():
     def doPipeline(self, config=None, file=None, data=None, step=None):
         logging.getLogger().info(f"doPipeline: file: {file} step: {step} data: {data['steps'][step]}")
 
+        #TODO: read from config instead
         #set options
         options = PipelineOptions(['--direct_num_workers', '8', '--runner', 'DirectRunner', '--direct_running_mode', 'multi_threading'])
         

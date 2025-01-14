@@ -11,6 +11,14 @@ from typing import List, Dict, Optional, Any
 
 import streamlit as st
 
+def t(l, k, v): 
+    if k in l:
+        l[k].append(v)
+    else :
+        l[k] = [v]
+
+
+
 @dataclass
 class ImportService:
     run_id: Optional[str] = None
@@ -137,8 +145,8 @@ class ImportService:
             json.dump(self, file, default=lambda o: o.__dict__)
 
 
-    def harvest(self, collibra, config, input, filename):
-        file = (f'{input}/{filename}.json')
+    def harvest(self, collibra, config, input, run_id):
+        file = (f'{input}/{run_id}.json')
 
         try:
             os.rename(file, f"{file}.lock")
@@ -146,12 +154,17 @@ class ImportService:
             with open(f"{file}.lock", "r") as f:
                 data = json.load(f)
 
-            #files = [f"{f['resource_location']}/{f['step_number']}.{f['file_name']}.{f['part_number']}.json" for k,v in data['steps'].items() for f in v]
-
-            #results = [self.do_import(collibra, config, f) for f in files]
-
             results = [self.do_import(collibra, config, p) for k,v in data['steps'].items() for p in v]
 
+            steps = {}
+
+            _ = [t(steps, r['step_number'], r) for r in results]
+
+            results = {
+                "runId": run_id,
+                "steps": steps
+            }
+            
             with open(f'{file}.results', "a+") as f:
                 f.write(json.dumps(results))
 
