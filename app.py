@@ -30,7 +30,7 @@ import threading
 
 from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
 
-from streamlit_lottie import st_lottie
+#from streamlit_lottie import st_lottie
 
 
 # import http.client
