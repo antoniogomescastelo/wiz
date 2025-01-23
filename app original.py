@@ -930,6 +930,8 @@ def show_progress(runId):
 
 
 def do_finding(importService, config, entries, x):
+    logging.getLogger().debug("do finding")
+
     # data category
     if x['Category'] not in entries[0]:
         entries[0][x['Category']] = {
@@ -963,6 +965,7 @@ def do_finding(importService, config, entries, x):
         entries[3][x['_subscriptionExternalId']] = {
             "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "System", x['_subscriptionExternalId'], x['_subscriptionExternalId']),
             "attributes": []
+
         }
 
     if x['_cloudPlatform'] not in entries[3][x['_subscriptionExternalId']]['attributes']:
@@ -976,17 +979,65 @@ def do_finding(importService, config, entries, x):
 
     # if buckets
     if x['type'] == 'BUCKET':        
+        # file system
+        if x['_externalId'] not in entries[4]:
+            entries[4][x['_externalId']] = {
+                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "S3 File System", x['_externalId'], x['_externalId']),
+                "relations": [],
+                "attributes": []
+            }
+
+        if x['_subscriptionExternalId'] not in entries[4][x['_externalId']]['relations']:
+            entries[4][x['_externalId']]['relations'].append(x['_subscriptionExternalId'])
+            importService.add_relations(entries[4][x['_externalId']]['entry'], "00000000-0000-0000-0000-000000007054", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], x['_subscriptionExternalId'])
+
+        if x['_region'] not in entries[4][x['_externalId']]['attributes']:
+            entries[4][x['_externalId']]['attributes'].append(x['_region'])
+            importService.add_attributes(entries[4][x['_externalId']]['entry'], 'Region', x['_region'], 'string')
+
+        if x['_creationDate'] not in entries[4][x['_externalId']]['attributes']:
+            entries[4][x['_externalId']]['attributes'].append(x['_creationDate'])
+            importService.add_attributes(entries[4][x['_externalId']]['entry'], 'Created At', x['_creationDate'], 'string')
+
         # storage container
+        if x['_externalId'] not in entries[5]:
+            entries[5][x['_externalId']] = {
+                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "S3 Bucket", f"s3://{x['_externalId']}", f"s3://{x['_externalId']}"),
+                "relations": [],
+                "attributes": []
+            }
+
+        if x['_externalId'] not in entries[5][x['_externalId']]['relations']:
+            entries[5][x['_externalId']]['relations'].append(x['_externalId'])
+            importService.add_relations(entries[5][x['_externalId']]['entry'], "00000000-0000-0000-0001-002600000000", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], x['_externalId'])
+
+        if x['Category'] not in entries[5][x['_externalId']]['relations']:
+            entries[5][x['_externalId']]['relations'].append(x['Category'])
+            importService.add_relations(entries[5][x['_externalId']]['entry'], "01930192-86fb-77b0-8baf-30a80dccb864", "TARGET", "Data categories", "Privacy and Risk community", x['Category'])
+
+        if x['Classifier'] not in entries[5][x['_externalId']]['relations']:
+            entries[5][x['_externalId']]['relations'].append(x['Classifier'])
+            importService.add_relations(entries[5][x['_externalId']]['entry'], "01930192-f332-70fc-8572-9f7283c4cfd4", "TARGET",  "Business Data Models", "Data Architects community", x['Classifier'])
+
+        if x['_region'] not in entries[5][x['_externalId']]['attributes']:
+            entries[5][x['_externalId']]['attributes'].append(x['_region'])
+            importService.add_attributes(entries[5][x['_externalId']]['entry'], 'Region', x['_region'], 'string')
+
+        if x['_creationDate'] not in entries[5][x['_externalId']]['attributes']:
+            entries[5][x['_externalId']]['attributes'].append(x['_creationDate'])
+            importService.add_attributes(entries[5][x['_externalId']]['entry'], 'Created At', x['_creationDate'], 'string')
+
+        # directory
         if x['_externalId'] not in entries[6]:
             entries[6][x['_externalId']] = {
-                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "S3 Bucket", f"s3://{x['_externalId']}/", f"s3://{x['_externalId']}/"),
+                "entry": importService.get_asset(config['community_to_query'], x['_subscriptionExternalId'], "Directory", f"s3://{x['_externalId']}/", "/"),
                 "relations": [],
                 "attributes": []
             }
 
         if x['_externalId'] not in entries[6][x['_externalId']]['relations']:
             entries[6][x['_externalId']]['relations'].append(x['_externalId'])
-            importService.add_relations(entries[6][x['_externalId']]['entry'], "00000000-0000-0000-0000-000000007054", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], x['_subscriptionExternalId'])
+            importService.add_relations(entries[6][x['_externalId']]['entry'], "00000000-0000-0000-0001-002600000001", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], f"s3://{x['_externalId']}")
 
         if x['Category'] not in entries[6][x['_externalId']]['relations']:
             entries[6][x['_externalId']]['relations'].append(x['Category'])
@@ -996,14 +1047,6 @@ def do_finding(importService, config, entries, x):
             entries[6][x['_externalId']]['relations'].append(x['Classifier'])
             importService.add_relations(entries[6][x['_externalId']]['entry'], "01930192-f332-70fc-8572-9f7283c4cfd4", "TARGET",  "Business Data Models", "Data Architects community", x['Classifier'])
 
-        if x['_cloudPlatform'] not in entries[6][x['_externalId']]['attributes']:
-            entries[6][x['_externalId']]['attributes'].append(x['_cloudPlatform'])
-            importService.add_attributes(entries[6][x['_externalId']]['entry'], 'Platform', x['_cloudPlatform'], 'string')
-
-        if x['_subscriptionExternalId'] not in entries[6][x['_externalId']]['attributes']:
-            entries[6][x['_externalId']]['attributes'].append(x['_subscriptionExternalId'])
-            importService.add_attributes(entries[6][x['_externalId']]['entry'], 'Account Name', x['_subscriptionExternalId'], 'string')
-
         if x['_region'] not in entries[6][x['_externalId']]['attributes']:
             entries[6][x['_externalId']]['attributes'].append(x['_region'])
             importService.add_attributes(entries[6][x['_externalId']]['entry'], 'Region', x['_region'], 'string')
@@ -1011,7 +1054,7 @@ def do_finding(importService, config, entries, x):
         if x['_creationDate'] not in entries[6][x['_externalId']]['attributes']:
             entries[6][x['_externalId']]['attributes'].append(x['_creationDate'])
             importService.add_attributes(entries[6][x['_externalId']]['entry'], 'Created At', x['_creationDate'], 'string')
-            
+
         # measure
         entries[8][f"{x['_externalId']}:{x['Classifier']}:Unique Matches"] = {
             "entry": importService.get_asset("Governance council", "New Data Findings Metrics", "Measure", f"{x['_externalId']}:{x['Classifier']}:Unique Matches", f"{x['Classifier']} Unique Matches")
@@ -1094,14 +1137,6 @@ def do_finding(importService, config, entries, x):
         if x['Classifier'] not in entries[7][x['_externalId']]['relations']:
             entries[7][x['_externalId']]['relations'].append(x['Classifier'])
             importService.add_relations(entries[7][x['_externalId']]['entry'], "019465e8-5d94-76a6-a34b-68a3f8d7c74c", "TARGET",  "Business Data Models", "Data Architects community", x['Classifier']) #01944282-9d1a-7185-97a6-3b2aef01c556
-
-        if x['_cloudPlatform'] not in entries[7][x['_externalId']]['attributes']:
-            entries[7][x['_externalId']]['attributes'].append(x['_cloudPlatform'])
-            importService.add_attributes(entries[7][x['_externalId']]['entry'], 'Platform', x['_cloudPlatform'], 'string')
-
-        if x['_subscriptionExternalId'] not in entries[7][x['_externalId']]['attributes']:
-            entries[7][x['_externalId']]['attributes'].append(x['_subscriptionExternalId'])
-            importService.add_attributes(entries[7][x['_externalId']]['entry'], 'Account Name', x['_subscriptionExternalId'], 'string')
 
         if x['_region'] not in entries[7][x['_externalId']]['attributes']:
             entries[7][x['_externalId']]['attributes'].append(x['_region'])
@@ -1189,9 +1224,9 @@ def do_finding_example(importService, config, entries, x):
 
         importService.add_relations(entries[11][file]['entry'], "00000000-0000-0000-0000-000000007060", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], f"s3://{x['name']}/")
 
-        # importService.add_relations(entries[11][file]['entry'], "01943678-0ab4-7015-ba1f-0f9a168a6ade", "TARGET", "Data categories", "Privacy and Risk community", x['Category'])
+        importService.add_relations(entries[11][file]['entry'], "01943678-0ab4-7015-ba1f-0f9a168a6ade", "TARGET", "Data categories", "Privacy and Risk community", x['Category'])
 
-        # importService.add_relations(entries[11][file]['entry'], "01943678-ebf1-7cd5-bc9c-c78b2d115f3c", "TARGET",  "Business Data Models", "Data Architects community", x['Classifier'])
+        importService.add_relations(entries[11][file]['entry'], "01943678-ebf1-7cd5-bc9c-c78b2d115f3c", "TARGET",  "Business Data Models", "Data Architects community", x['Classifier'])
 
 
     # if database
@@ -1211,30 +1246,6 @@ def do_finding_example(importService, config, entries, x):
         if x['name'] not in entries[12][f"{x['name']}>{database}"]['relations']:
             entries[12][f"{x['name']}>{database}"]['relations'].append(x['name'])
             importService.add_relations(entries[12][f"{x['name']}>{database}"]['entry'], "00000000-0000-0000-0000-000000007054", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], x['name'])
-
-        # if x['name'] not in entries[12][f"{x['name']}>{database}"]['relations']:
-        #     entries[12][f"{x['name']}>{database}"]['relations'].append(x['name'])
-        #     importService.add_relations(entries[12][f"{x['name']}>{database}"]['entry'], "00000000-0000-0000-0000-000000007054", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], x['name'])
-
-        # if x['_cloudPlatform'] not in entries[12][f"{x['name']}>{database}"]['attributes']:
-        #     entries[12][f"{x['name']}>{database}"]['attributes'].append(x['_cloudPlatform'])
-        #     importService.add_attributes(entries[12][f"{x['name']}>{database}"]['entry'], 'Platform', x['_cloudPlatform'], 'string')
-
-        # if x['_subscriptionExternalId'] not in entries[12][f"{x['name']}>{database}"]['attributes']:
-        #     entries[12][f"{x['name']}>{database}"]['attributes'].append(x['_subscriptionExternalId'])
-        #     importService.add_attributes(entries[12][f"{x['name']}>{database}"]['entry'], 'Account Name', x['_subscriptionExternalId'], 'string')
-
-        # if x['_region'] not in entries[12][f"{x['name']}>{database}"]['attributes']:
-        #     entries[12][f"{x['name']}>{database}"]['attributes'].append(x['_region'])
-        #     importService.add_attributes(entries[12][f"{x['name']}>{database}"]['entry'], 'Region', x['_region'], 'string')
-
-        # if x['_creationDate'] not in entries[12][f"{x['name']}>{database}"]['attributes']:
-        #     entries[12][f"{x['name']}>{database}"]['attributes'].append(x['_creationDate'])
-        #     importService.add_attributes(entries[12][f"{x['name']}>{database}"]['entry'], 'Created At', x['_creationDate'], 'string')
-
-        # if x['_externalId'] not in entries[12][f"{x['name']}>{database}"]['attributes']:
-        #     entries[12][f"{x['name']}>{database}"]['attributes'].append(x['_externalId'])
-        #     importService.add_attributes(entries[12][f"{x['name']}>{database}"]['entry'], 'Principal Identifier', x['_externalId'], 'string')
 
         # schema
         schema = parts.pop()
@@ -1261,6 +1272,7 @@ def do_finding_example(importService, config, entries, x):
         if  f"{x['name']}>{database}>{schema}" not in entries[14][f"{x['name']}>{database}>{schema}>{table}"]['relations']:
             entries[14][f"{x['name']}>{database}>{schema}>{table}"]['relations'].append(f"{x['name']}>{database}>{schema}")
             importService.add_relations(entries[14][f"{x['name']}>{database}>{schema}>{table}"]['entry'], "00000000-0000-0000-0000-000000007043", "SOURCE", x['_subscriptionExternalId'], config['community_to_query'], f"{x['name']}>{database}>{schema}")
+
 
     
 def do_all_findings(config, data_scan_resources_ready_df, data_scan_resources_exploded_df):
@@ -1326,6 +1338,11 @@ def do_all_findings(config, data_scan_resources_ready_df, data_scan_resources_ex
     _= [importService.save(e, "./runs", runId, i, True) for i,e in enumerate(allEntries)]
 
     
+    # # all in one step file
+    # allEntries = []
+    # _= [allEntries.append(v['entry']) for i,e in enumerate(entries) for k,v in e.items()]
+    # importService.save(allEntries, "./runs", runId, 0, True)
+
     HarvesterService().run(config, "./runs") 
 
     # placeholder.empty()
@@ -1349,3 +1366,33 @@ if __name__ == '__main__':
     st.set_page_config(layout="wide")
 
     main()    
+
+    
+
+#get collibra
+#@st.cache_resource
+# def get_collibra(config):
+#     payload = f'client_id={config["collibra_client_id"]}&client_secret={config["collibra_client_secret"]}&grant_type=client_credentials'
+
+#     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+
+#     conn = http.client.HTTPSConnection(config["collibra_host"])
+
+#     conn.request("POST", config['collibra_token_endpoint'], payload, headers)
+
+#     res = conn.getresponse()
+
+#     token = json.loads(res.read().decode("utf-8"))
+
+#     collibra = {}
+
+#     collibra = {"host": f"https://{config['collibra_host']}"}
+
+#     collibra["endpoint"] = f"{collibra['host']}{config['collibra_api_endpoint']}"
+
+#     collibra["session"] = requests.Session()
+        
+#     collibra.get("session").headers.update({'Authorization': f'Bearer {token["access_token"]}'})
+
+#     return collibra
+
