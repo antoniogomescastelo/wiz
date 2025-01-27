@@ -6,3 +6,4 @@ vl-convert-python
 snowflake-snowpark-python
 snowflake-connector-python
 fastparquet
+vegafusion
