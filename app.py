@@ -424,7 +424,8 @@ def get_data_findings(config):
 
     config= get_token(config)
 
-    session = Session.builder.config("connection_name", "wizio").create()
+    session = st.connection("snowflake").session()
+    #session = Session.builder.config("connection_name", "wizio").create()
 
     # resources_df = pd.DataFrame(get_resources(config, config['wizio_project_id']) )
 
