@@ -130,7 +130,7 @@ def main():
     # update matrix with similarity
     l=list(names_per_database.keys())
     
-    _=[update_matrix(matrix, i, ii, jaccard_similarity(l[i],l[ii])) for i, n in enumerate(matrix) for ii, nn in enumerate(matrix[i])]
+    _=[update_matrix(matrix, lk, ck, jaccard_similarity(names_per_database[l[lk]], names_per_database[l[ck]])) for lk, lv in enumerate(l) for ck, cv in enumerate(l)]
 
     similarity_df = pd.DataFrame(matrix, columns=list(names_per_database.keys()), index=list(names_per_database.keys()))
     
@@ -192,11 +192,26 @@ def main():
 
     c = (alt.Chart(similarity_df_melted.query(mask))
         .encode(alt.X('variable', axis=alt.Axis(labels=False, labelAngle=0)).title('Database'), alt.Y('index', axis=alt.Axis(labels=False, labelAngle=0)).title('Database'), alt.Color('value', legend=None).scale(scheme="orangered", reverse=False), alt.Text('value'), tooltip=["variable","index","value"])
-        .properties(title='Check it out')
+        .properties(title='Jaccard Similarity')
     )
 
-    st.altair_chart(c.mark_rect(), use_container_width=True)             
+    st.altair_chart(c.mark_rect(), use_container_width=True)       
 
+    if database_A != "" and database_B != "":
+            st.markdown(f"**{database_A}**")
+            st.write({i for i in names_per_database[database_A]})
+
+            st.markdown(f"**{database_B}**")
+            st.write({i for i in names_per_database[database_B]})
+            
+            st.markdown("**Intersection**")
+            st.write(set.intersection(*[set(names_per_database[database_A]), set(names_per_database[database_B])]))
+
+            st.markdown("**Union**")
+            st.write(set.union(*[set(names_per_database[database_A]), set(names_per_database[database_B])]))      
+
+            st.markdown("**Jaccard Index**")
+            st.write(jaccard_similarity(names_per_database[database_A], names_per_database[database_B]))    
 
 if __name__ == '__main__':
     st.set_page_config(layout="wide")
